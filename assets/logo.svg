@@ -1,0 +1,20 @@
+<svg width="400" height="400" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="400" y2="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5468FF"/>
+      <stop offset="1" stop-color="#A855F7"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="400" rx="92" fill="url(#bg)"/>
+  <!-- suspension cables / bridge deck arc -->
+  <path d="M104 246 Q200 150 296 246" fill="none" stroke="#FFFFFF" stroke-width="18" stroke-linecap="round"/>
+  <!-- piers -->
+  <line x1="148" y1="224" x2="148" y2="286" stroke="#FFFFFF" stroke-width="15" stroke-linecap="round"/>
+  <line x1="200" y1="198" x2="200" y2="286" stroke="#FFFFFF" stroke-width="15" stroke-linecap="round"/>
+  <line x1="252" y1="224" x2="252" y2="286" stroke="#FFFFFF" stroke-width="15" stroke-linecap="round"/>
+  <!-- deck / baseline -->
+  <line x1="100" y1="286" x2="300" y2="286" stroke="#FFFFFF" stroke-width="17" stroke-linecap="round"/>
+  <!-- delegation endpoint nodes -->
+  <circle cx="104" cy="246" r="17" fill="#FFFFFF"/>
+  <circle cx="296" cy="246" r="17" fill="#FFFFFF"/>
+</svg>

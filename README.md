@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/TheBlueHouse75/hermes-action-bridge/main/assets/logo.png" alt="Hermes Action Bridge" width="128" height="128" />
+</p>
+
 # Hermes Action Bridge
 
 [![npm](https://img.shields.io/npm/v/hermes-action-bridge)](https://www.npmjs.com/package/hermes-action-bridge) [![CI](https://github.com/TheBlueHouse75/hermes-action-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/TheBlueHouse75/hermes-action-bridge/actions/workflows/ci.yml)
