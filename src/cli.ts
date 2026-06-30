@@ -7,13 +7,14 @@ import { buildEffectiveRun } from "./run.js";
 import { runHermesCli } from "./adapters/hermes-cli.js";
 import { checkHermesStatus } from "./status.js";
 import { startMcpServer } from "./mcp-server.js";
+import { version } from "./version.js";
 import type { BridgeMode } from "./types.js";
 
 const program = new Command();
 program
   .name("hermes-action")
   .description("Delegate actions from external agents to Hermes Agent through configurable policies and presets.")
-  .version("0.1.0");
+  .version(version);
 
 program
   .command("init")

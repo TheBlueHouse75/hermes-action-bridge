@@ -27,6 +27,7 @@ Hermes skills, tools, browser automation, MCPs, cron jobs, messaging, APIs
 - `src/adapters/hermes-cli.ts`: Hermes CLI adapter.
 - `src/mcp-server.ts`: minimal MCP server.
 - `src/status.ts`: runtime availability check.
+- `src/version.ts`: single source of truth for the package version.
 
 ## Config precedence
 

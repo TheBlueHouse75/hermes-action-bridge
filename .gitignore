@@ -6,3 +6,7 @@ coverage/
 !.env.example
 .DS_Store
 *.log
+
+# Local product/spec drafts that should not ship in the package/repo
+docs/prd/
+docs/prds/

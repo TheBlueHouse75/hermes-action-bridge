@@ -271,6 +271,12 @@ npm run check
 
 Functional tests use a fake Hermes binary to verify command construction, prompt wrapping, risk policy, and YOLO behavior without spending LLM credits.
 
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md): module map, config precedence, modes, policy, and MCP design.
+- [Functional testing](docs/FUNCTIONAL-TESTS.md): automated tests and live smoke-test procedures.
+- [Contributing](CONTRIBUTING.md): local setup, development rules, and release checklist.
+
 ## Security notes
 
 - Do not put secrets in `.hermes-action.yaml`.

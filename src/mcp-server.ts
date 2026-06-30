@@ -5,12 +5,41 @@ import { loadConfig } from "./config.js";
 import { buildEffectiveRun } from "./run.js";
 import { runHermesCli } from "./adapters/hermes-cli.js";
 import { checkHermesStatus } from "./status.js";
-import type { BridgeMode } from "./types.js";
+import { version } from "./version.js";
+import type { BridgeConfig, BridgeMode } from "./types.js";
 
 const modeSchema = z.enum(["plan", "draft", "execute", "request-approval"]);
 
+interface DelegateOptions {
+  prompt: string;
+  mode?: BridgeMode | undefined;
+  preset?: string | undefined;
+  contextFiles?: string[] | undefined;
+  yolo?: boolean | undefined;
+  dryRun?: boolean | undefined;
+}
+
+async function delegate(config: BridgeConfig, options: DelegateOptions) {
+  const dryRun = options.dryRun ?? false;
+  const run = buildEffectiveRun(config, {
+    prompt: options.prompt,
+    mode: options.mode,
+    preset: options.preset,
+    contextFiles: options.contextFiles ?? [],
+    yolo: options.yolo ?? false,
+    dryRun,
+    json: false,
+  });
+  const result = await runHermesCli(config, run, dryRun);
+  const sections = [result.stdout, result.stderr].filter((section) => section.trim().length > 0);
+  const text = sections.length > 0 ? sections.join("\n") : `Hermes exited with code ${result.exitCode}`;
+  const content = [{ type: "text" as const, text }];
+  return result.ok ? { content } : { content, isError: true };
+}
+
 export async function startMcpServer(configPath?: string): Promise<void> {
-  const server = new McpServer({ name: "hermes-action-bridge", version: "0.1.0" });
+  const config = loadConfig(process.cwd(), configPath);
+  const server = new McpServer({ name: "hermes-action-bridge", version });
 
   server.registerTool(
     "hermes_run",
@@ -26,20 +55,15 @@ export async function startMcpServer(configPath?: string): Promise<void> {
         dryRun: z.boolean().optional(),
       },
     },
-    async (args) => {
-      const config = loadConfig(process.cwd(), configPath);
-      const run = buildEffectiveRun(config, {
+    (args) =>
+      delegate(config, {
         prompt: args.prompt,
         mode: args.mode as BridgeMode | undefined,
         preset: args.preset,
-        contextFiles: args.contextFiles || [],
-        yolo: args.yolo || false,
-        dryRun: args.dryRun || false,
-        json: false,
-      });
-      const result = await runHermesCli(config, run, args.dryRun || false);
-      return { content: [{ type: "text", text: result.stdout || result.stderr }] };
-    },
+        contextFiles: args.contextFiles,
+        yolo: args.yolo,
+        dryRun: args.dryRun,
+      }),
   );
 
   server.registerTool(
@@ -49,20 +73,13 @@ export async function startMcpServer(configPath?: string): Promise<void> {
       description: "Shortcut for hermes_run with mode=plan.",
       inputSchema: { prompt: z.string().min(1), preset: z.string().optional(), contextFiles: z.array(z.string()).optional() },
     },
-    async (args) => {
-      const config = loadConfig(process.cwd(), configPath);
-      const run = buildEffectiveRun(config, {
+    (args) =>
+      delegate(config, {
         prompt: args.prompt,
         mode: "plan",
         preset: args.preset,
-        contextFiles: args.contextFiles || [],
-        yolo: false,
-        dryRun: false,
-        json: false,
-      });
-      const result = await runHermesCli(config, run, false);
-      return { content: [{ type: "text", text: result.stdout || result.stderr }] };
-    },
+        contextFiles: args.contextFiles,
+      }),
   );
 
   server.registerTool(
@@ -71,10 +88,7 @@ export async function startMcpServer(configPath?: string): Promise<void> {
       title: "List presets",
       description: "List configured hermes-action-bridge presets.",
     },
-    () => {
-      const config = loadConfig(process.cwd(), configPath);
-      return { content: [{ type: "text", text: JSON.stringify(config.presets, null, 2) }] };
-    },
+    () => ({ content: [{ type: "text", text: JSON.stringify(config.presets, null, 2) }] }),
   );
 
   server.registerTool(
@@ -83,10 +97,7 @@ export async function startMcpServer(configPath?: string): Promise<void> {
       title: "Check Hermes runtime status",
       description: "Check whether the configured Hermes command is available.",
     },
-    () => {
-      const config = loadConfig(process.cwd(), configPath);
-      return { content: [{ type: "text", text: JSON.stringify(checkHermesStatus(config), null, 2) }] };
-    },
+    () => ({ content: [{ type: "text", text: JSON.stringify(checkHermesStatus(config), null, 2) }] }),
   );
 
   await server.connect(new StdioServerTransport());

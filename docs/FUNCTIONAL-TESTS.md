@@ -23,6 +23,7 @@ The fake Hermes tests verify:
 - Risky `execute` requests become `request-approval`.
 - `--yolo` passes through and keeps `execute` mode.
 - The prompt envelope contains mode, preset, YOLO state, detected risks, user request, and context.
+- A failed Hermes run is surfaced through the MCP server as an error result (`isError`).
 
 ## Live Hermes smoke test
 

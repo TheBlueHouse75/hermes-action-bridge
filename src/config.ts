@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import YAML from "yaml";
 import { z } from "zod";
-import type { BridgeConfig } from "./types.js";
+import type { BridgeConfig, RiskCategory } from "./types.js";
 
 const modeSchema = z.enum(["plan", "draft", "execute", "request-approval"]);
 const riskSchema = z.enum([
@@ -15,6 +15,16 @@ const riskSchema = z.enum([
   "git_push",
   "credential_change",
 ]);
+
+const defaultRequireApprovalFor: RiskCategory[] = [
+  "publish_external",
+  "send_message",
+  "send_email",
+  "delete",
+  "payment",
+  "git_push",
+  "credential_change",
+];
 
 const rawConfigSchema = z.object({
   runtime: z
@@ -50,17 +60,9 @@ const rawConfigSchema = z.object({
   policy: z
     .object({
       yolo: z.boolean().default(false),
-      require_approval_for: z.array(riskSchema).default([
-        "publish_external",
-        "send_message",
-        "send_email",
-        "delete",
-        "payment",
-        "git_push",
-        "credential_change",
-      ]),
+      require_approval_for: z.array(riskSchema).default(defaultRequireApprovalFor),
     })
-    .default({ yolo: false, require_approval_for: [] }),
+    .default({ yolo: false, require_approval_for: defaultRequireApprovalFor }),
 });
 
 type RawConfig = z.infer<typeof rawConfigSchema>;
@@ -71,15 +73,7 @@ export const defaultConfig: BridgeConfig = {
   presets: { default: { skills: [], toolsets: [] } },
   policy: {
     yolo: false,
-    requireApprovalFor: [
-      "publish_external",
-      "send_message",
-      "send_email",
-      "delete",
-      "payment",
-      "git_push",
-      "credential_change",
-    ],
+    requireApprovalFor: [...defaultRequireApprovalFor],
   },
 };
 
@@ -94,7 +88,7 @@ export function defaultProjectConfig(): string {
     },
     policy: {
       yolo: false,
-      require_approval_for: ["publish_external", "send_message", "send_email", "delete", "payment", "git_push", "credential_change"],
+      require_approval_for: defaultRequireApprovalFor,
     },
   });
 }

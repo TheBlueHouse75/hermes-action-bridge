@@ -10,7 +10,7 @@
     "dist",
     "README.md",
     "CONTRIBUTING.md",
-    "docs",
+    "docs/*.md",
     "examples"
   ],
   "scripts": {

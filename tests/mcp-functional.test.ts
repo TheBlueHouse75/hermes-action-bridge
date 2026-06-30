@@ -55,4 +55,38 @@ describe("MCP server", () => {
       await client.close();
     }
   }, 15_000);
+
+  it("marks a failed Hermes run as an MCP error", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "hermes-action-mcp-fail-"));
+    const fakeHermes = join(dir, "fake-hermes.js");
+    writeFileSync(
+      fakeHermes,
+      ["#!/usr/bin/env node", "console.log('partial progress');", "console.error('hermes boom');", "process.exit(2);"].join("\n"),
+    );
+    chmodSync(fakeHermes, 0o755);
+    const configPath = join(dir, ".hermes-action.yaml");
+    writeFileSync(
+      configPath,
+      ["runtime:", `  command: ${JSON.stringify(fakeHermes)}`, "presets:", "  default:", "    skills: []", "    toolsets: []"].join("\n"),
+    );
+
+    const transport = new StdioClientTransport({
+      command: "npx",
+      args: ["tsx", cli, "mcp", "--config", configPath],
+      cwd: process.cwd(),
+      stderr: "pipe",
+    });
+    const client = new Client({ name: "hermes-action-test", version: "0.1.0" });
+    await client.connect(transport);
+    try {
+      const result = await client.callTool({ name: "hermes_run", arguments: { prompt: "do something", mode: "plan" } });
+      expect(result.isError).toBe(true);
+      const content = result.content as Array<{ type: string; text?: string }> | undefined;
+      const text = content?.at(0)?.text ?? "";
+      expect(text).toContain("hermes boom");
+      expect(text).toContain("partial progress");
+    } finally {
+      await client.close();
+    }
+  }, 15_000);
 });
