@@ -99,6 +99,7 @@ export interface AdapterResult {
   stdout: string;
   stderr: string;
   command: string[];
+  /** The full constructed envelope. For large payloads this is what was written to the temp file, not the short `-q` pointer in `command`. */
   prompt: string;
   dryRun: boolean;
   /** True when the child was killed because it exceeded the timeout. */
