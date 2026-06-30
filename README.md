@@ -1,5 +1,7 @@
 # Hermes Action Bridge
 
+[![CI](https://github.com/TheBlueHouse75/hermes-action-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/TheBlueHouse75/hermes-action-bridge/actions/workflows/ci.yml)
+
 A configurable bridge that lets external agents delegate real-world actions to [Hermes Agent](https://hermes-agent.nousresearch.com/docs) without reimplementing Hermes skills, tools, platform integrations, browser automation, cron jobs, or messaging flows.
 
 Use it from Claude Code, Codex, Cursor, CI jobs, shell scripts, or any MCP-capable client.
@@ -299,6 +301,8 @@ Functional tests use a fake Hermes binary to verify command construction, prompt
 - [Architecture](docs/ARCHITECTURE.md): module map, config precedence, modes, policy, and MCP design.
 - [Functional testing](docs/FUNCTIONAL-TESTS.md): automated tests and live smoke-test procedures.
 - [Contributing](CONTRIBUTING.md): local setup, development rules, and release checklist.
+- [Changelog](CHANGELOG.md): release history.
+- [Security policy](SECURITY.md): how to report a vulnerability.
 
 ## Security notes
 

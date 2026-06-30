@@ -1,0 +1,40 @@
+# Changelog
+
+All notable changes to this project are documented here. The format is based on
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.2.0] - 2026-06-30
+
+### Added
+
+- Native agent skills installer: `hermes-action install|uninstall <claude-code|codex|all|mcp>`.
+  Installs the open-standard `SKILL.md` to `~/.claude/skills` and `~/.codex/skills`.
+- `hermes-action doctor` (`--json`, `--probe`): checks Node, configuration, Hermes availability,
+  Claude Code / Codex availability, and installed-skill state.
+- Opt-in project hints (`--project-hint`): a marker-managed block in `CLAUDE.md` / `AGENTS.md`.
+- Project-scoped skills (`--project`) and MCP config help: `install mcp` prints per-client snippets
+  (JSON for Claude Code / Cursor / VS Code, TOML for Codex); `install mcp --write` merges the
+  project `.mcp.json`, preserving other servers.
+- `--dry-run` and `--print` (write nothing) and `--force` (replace a managed skill).
+
+### Changed
+
+- The MCP server reports failed Hermes runs as errors (`isError`) and surfaces both stdout and
+  stderr instead of hiding failure detail.
+- The package version is sourced from `package.json` in one place; build and packaging hardened so
+  local drafts never ship in the npm tarball.
+
+### Security
+
+- The installer never modifies `CLAUDE.md` / `AGENTS.md` without `--project-hint`, refuses to
+  overwrite a file it did not generate, stays idempotent, and resolves paths cross-platform.
+
+## [0.1.0]
+
+### Added
+
+- Initial Hermes Action Bridge: `run`, `presets`, `status`, `mcp`, and `init` commands.
+- Configurable presets, a conservative risk policy (downgrade risky `execute` to `request-approval`),
+  an explicit `--yolo` escape hatch, context-file injection with size limits, dry-run mode, and a
+  minimal MCP server exposing `hermes_run`, `hermes_plan`, `hermes_presets`, and `hermes_status`.
