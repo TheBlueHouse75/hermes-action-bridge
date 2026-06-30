@@ -188,6 +188,9 @@ hermes-action run [options] "request"
 hermes-action presets [--json]
 hermes-action status [--json]
 hermes-action mcp
+hermes-action install <claude-code|codex|all|mcp> [options]
+hermes-action uninstall <claude-code|codex|all|mcp> [options]
+hermes-action doctor [--json] [--probe]
 ```
 
 Common `run` options:
@@ -207,17 +210,37 @@ Common `run` options:
 --json
 ```
 
-## Claude Code usage
+## Native agent skills
 
-Add the snippet in `examples/claude-code/CLAUDE.md` to your project-level Claude instructions.
-
-Minimal direct call:
+Instead of pasting instructions by hand, install a native skill so Claude Code and Codex know when to delegate to Hermes. The skill is the same open-standard `SKILL.md` for both agents; the CLI stays the deterministic execution layer.
 
 ```bash
-hermes-action run --mode plan "Ask Hermes what should happen next."
+hermes-action doctor                 # check Node, Hermes, agents, and installed skills
+hermes-action install all            # ~/.claude/skills and ~/.codex/skills
+hermes-action install claude-code --print     # preview, write nothing
+hermes-action install codex --project-hint     # also add a marker block to AGENTS.md
+hermes-action uninstall all
 ```
 
-MCP configuration:
+Install behavior is safe by default: it never modifies `CLAUDE.md` / `AGENTS.md` unless you pass `--project-hint`, refuses to overwrite a file it did not generate, and is idempotent. Use `--project` for a project-local skill and `--dry-run` to preview operations.
+
+The generated skill is shown in [`examples/claude-code/SKILL.md`](examples/claude-code/SKILL.md). Project-hint usage is documented in [`examples/claude-code/CLAUDE.md`](examples/claude-code/CLAUDE.md) and [`examples/codex/AGENTS.md`](examples/codex/AGENTS.md).
+
+## MCP configuration
+
+Print the config snippet for your client (Claude Code / Cursor / VS Code use JSON; Codex uses TOML):
+
+```bash
+hermes-action install mcp
+```
+
+For Claude Code, write or merge the project `.mcp.json` directly (preserving other servers):
+
+```bash
+hermes-action install mcp --write
+```
+
+Or configure it by hand:
 
 ```json
 {
@@ -230,13 +253,13 @@ MCP configuration:
 }
 ```
 
-## Codex usage
+## Direct delegation
 
-Add the snippet in `examples/codex/AGENTS.md` to your project instructions.
-
-Example:
+You can always call the bridge directly, without a skill:
 
 ```bash
+hermes-action run --mode plan "Ask Hermes what should happen next."
+
 hermes-action run \
   --preset coding \
   --context ./codex-notes.md \

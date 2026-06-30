@@ -1,6 +1,6 @@
 {
   "name": "hermes-action-bridge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Configurable bridge for external agents to delegate actions to Hermes Agent via CLI or MCP.",
   "type": "module",
   "bin": {

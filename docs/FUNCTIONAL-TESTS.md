@@ -25,6 +25,16 @@ The fake Hermes tests verify:
 - The prompt envelope contains mode, preset, YOLO state, detected risks, user request, and context.
 - A failed Hermes run is surfaced through the MCP server as an error result (`isError`).
 
+The installer tests verify (with injected home/cwd and temp `HOME`, no real agents required):
+
+- `install` / `uninstall` are idempotent and never touch `CLAUDE.md` / `AGENTS.md` by default.
+- `--dry-run` and `--print` write nothing; `--force` replaces a managed skill; a non-managed file is refused.
+- `--project-hint` adds and removes a marker block without losing existing content.
+- `--project` installs a project-local skill without creating the global one.
+- `install mcp --write` merges and `uninstall mcp --write` unmerges the project `.mcp.json`, preserving other servers.
+- `doctor` assembles its checks and JSON report, and `--probe` accepts the sentinel on stdout or stderr.
+- The shipped `examples/*/SKILL.md` match the installer template exactly (no drift).
+
 ## Live Hermes smoke test
 
 Use a safe dry-run first:

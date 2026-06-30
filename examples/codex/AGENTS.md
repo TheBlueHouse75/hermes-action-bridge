@@ -1,51 +1,21 @@
-# Codex Instructions: Hermes Action Bridge
+# Codex: Hermes Action Bridge
 
-When a task requires capabilities outside this coding session, delegate to Hermes through `hermes-action` instead of reimplementing integrations in Codex.
-
-## When to delegate
-
-Use the bridge for:
-
-- Hermes skills and established workflows.
-- Browser automation.
-- Messaging, social, email, or platform actions.
-- Cron jobs and scheduled automation.
-- Research workflows that Hermes is configured to perform.
-- Actions that need Hermes' memory, tools, profiles, or connected services.
-
-## Safe default
+Install the native skill so Codex knows when to delegate real-world actions to Hermes:
 
 ```bash
-hermes-action run --mode plan "Ask Hermes what should happen next."
+hermes-action install codex
 ```
 
-## Context handoff
-
-If Codex has useful repository context, write a concise handoff file and pass it:
+This writes `~/.codex/skills/hermes-action-bridge/SKILL.md`. Preview the exact content first with:
 
 ```bash
-hermes-action run \
-  --preset coding \
-  --context ./codex-handoff.md \
-  "Use Hermes to inspect this handoff and perform the appropriate next step."
+hermes-action install codex --print
 ```
 
-## Approval boundary
-
-Do not execute public posts, outbound email/messages, deletes, payments, credential changes, or git pushes through the bridge without explicit human approval.
-
-Use:
+To add a small marker-managed hint to this project's `AGENTS.md` (instead of, or in addition to, the global skill):
 
 ```bash
-hermes-action run --mode request-approval "Prepare this action and ask for approval."
+hermes-action install codex --project-hint
 ```
 
-## YOLO mode
-
-Only use YOLO if the human explicitly requested it:
-
-```bash
-hermes-action run --yolo --mode execute "Do the task now."
-```
-
-YOLO bypasses the bridge policy only. Hermes still applies its own safety constraints.
+The generated skill is shown in [SKILL.md](SKILL.md). Check your setup with `hermes-action doctor`. Remove everything with `hermes-action uninstall codex --project-hint`.

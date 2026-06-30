@@ -28,6 +28,21 @@ Hermes skills, tools, browser automation, MCPs, cron jobs, messaging, APIs
 - `src/mcp-server.ts`: minimal MCP server.
 - `src/status.ts`: runtime availability check.
 - `src/version.ts`: single source of truth for the package version.
+- `src/doctor.ts`: environment checks for `hermes-action doctor`.
+
+## Native skills installer (`src/install/`)
+
+The `install` / `uninstall` commands install an open-standard `SKILL.md` for Claude Code (`~/.claude/skills/`) and Codex (`~/.codex/skills/`). The CLI remains the deterministic execution layer; the skill only tells the agent when to delegate.
+
+- `src/install/paths.ts`: cross-platform skill and instruction-file paths (injectable home/cwd).
+- `src/install/templates.ts`: single source for the `SKILL.md` body, project hint, and MCP snippets.
+- `src/install/managed-file.ts`: lock-based provenance for skill bundles (classify, atomic write, refuse-unmanaged).
+- `src/install/marker-block.ts`: fail-safe marker block for the optional `CLAUDE.md` / `AGENTS.md` hint.
+- `src/install/file-edit.ts`: shared read-edit-write helper used by the hint and the `.mcp.json` writer.
+- `src/install/mcp-config.ts`: MCP snippets and the Claude Code `.mcp.json` merge/unmerge writer.
+- `src/install/install-service.ts`: per-agent install/uninstall with failure isolation.
+
+Defaults are conservative: never modify `CLAUDE.md` / `AGENTS.md` without `--project-hint`, never overwrite a file the installer did not generate, and stay idempotent.
 
 ## Config precedence
 
