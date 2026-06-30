@@ -1,6 +1,6 @@
 # Hermes Action Bridge
 
-[![CI](https://github.com/TheBlueHouse75/hermes-action-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/TheBlueHouse75/hermes-action-bridge/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/hermes-action-bridge)](https://www.npmjs.com/package/hermes-action-bridge) [![CI](https://github.com/TheBlueHouse75/hermes-action-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/TheBlueHouse75/hermes-action-bridge/actions/workflows/ci.yml)
 
 A configurable bridge that lets external agents delegate real-world actions to [Hermes Agent](https://hermes-agent.nousresearch.com/docs) without reimplementing Hermes skills, tools, platform integrations, browser automation, cron jobs, or messaging flows.
 
@@ -40,26 +40,31 @@ hermes --version
 
 ## Installation
 
-From a local checkout:
+Install from npm:
 
 ```bash
+npm install -g hermes-action-bridge
+```
+
+Then check it works:
+
+```bash
+hermes-action --version
+hermes-action doctor
+```
+
+<details>
+<summary>From source (for development)</summary>
+
+```bash
+git clone https://github.com/TheBlueHouse75/hermes-action-bridge.git
+cd hermes-action-bridge
 npm install
 npm run build
 npm link
 ```
 
-Then:
-
-```bash
-hermes-action --version
-hermes-action status
-```
-
-When published to npm, installation will be:
-
-```bash
-npm install -g hermes-action-bridge
-```
+</details>
 
 ## Quick start
 
