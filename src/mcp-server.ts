@@ -10,6 +10,22 @@ import type { BridgeConfig, BridgeMode } from "./types.js";
 
 const modeSchema = z.enum(["plan", "draft", "execute", "request-approval"]);
 
+type BridgeToolResult = { content: Array<{ type: "text"; text: string }>; isError?: boolean };
+
+/**
+ * Single error boundary for every tool handler: any thrown error (bad preset,
+ * missing/oversized context, adapter failure, serialization) becomes a clean
+ * structured MCP error instead of crashing the server.
+ */
+async function guard(produce: () => BridgeToolResult | Promise<BridgeToolResult>): Promise<BridgeToolResult> {
+  try {
+    return await produce();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { content: [{ type: "text", text: `Bridge error: ${message}` }], isError: true };
+  }
+}
+
 interface DelegateOptions {
   prompt: string;
   mode?: BridgeMode | undefined;
@@ -19,7 +35,7 @@ interface DelegateOptions {
   dryRun?: boolean | undefined;
 }
 
-async function delegate(config: BridgeConfig, options: DelegateOptions) {
+async function delegate(config: BridgeConfig, options: DelegateOptions): Promise<BridgeToolResult> {
   const dryRun = options.dryRun ?? false;
   const run = buildEffectiveRun(config, {
     prompt: options.prompt,
@@ -56,14 +72,16 @@ export async function startMcpServer(configPath?: string): Promise<void> {
       },
     },
     (args) =>
-      delegate(config, {
-        prompt: args.prompt,
-        mode: args.mode as BridgeMode | undefined,
-        preset: args.preset,
-        contextFiles: args.contextFiles,
-        yolo: args.yolo,
-        dryRun: args.dryRun,
-      }),
+      guard(() =>
+        delegate(config, {
+          prompt: args.prompt,
+          mode: args.mode as BridgeMode | undefined,
+          preset: args.preset,
+          contextFiles: args.contextFiles,
+          yolo: args.yolo,
+          dryRun: args.dryRun,
+        }),
+      ),
   );
 
   server.registerTool(
@@ -74,12 +92,14 @@ export async function startMcpServer(configPath?: string): Promise<void> {
       inputSchema: { prompt: z.string().min(1), preset: z.string().optional(), contextFiles: z.array(z.string()).optional() },
     },
     (args) =>
-      delegate(config, {
-        prompt: args.prompt,
-        mode: "plan",
-        preset: args.preset,
-        contextFiles: args.contextFiles,
-      }),
+      guard(() =>
+        delegate(config, {
+          prompt: args.prompt,
+          mode: "plan",
+          preset: args.preset,
+          contextFiles: args.contextFiles,
+        }),
+      ),
   );
 
   server.registerTool(
@@ -88,7 +108,7 @@ export async function startMcpServer(configPath?: string): Promise<void> {
       title: "List presets",
       description: "List configured hermes-action-bridge presets.",
     },
-    () => ({ content: [{ type: "text", text: JSON.stringify(config.presets, null, 2) }] }),
+    () => guard(() => ({ content: [{ type: "text", text: JSON.stringify(config.presets, null, 2) }] })),
   );
 
   server.registerTool(
@@ -97,7 +117,7 @@ export async function startMcpServer(configPath?: string): Promise<void> {
       title: "Check Hermes runtime status",
       description: "Check whether the configured Hermes command is available.",
     },
-    () => ({ content: [{ type: "text", text: JSON.stringify(checkHermesStatus(config), null, 2) }] }),
+    () => guard(() => ({ content: [{ type: "text", text: JSON.stringify(checkHermesStatus(config), null, 2) }] })),
   );
 
   await server.connect(new StdioServerTransport());
