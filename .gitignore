@@ -10,3 +10,6 @@ coverage/
 # Local product/spec drafts that should not ship in the package/repo
 docs/prd/
 docs/prds/
+
+# Runtime logs from external tooling (not part of the project)
+logs/
