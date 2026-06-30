@@ -57,6 +57,7 @@ program
   .option("--provider <name>", "Hermes provider")
   .option("--model <name>", "Hermes model")
   .option("--max-turns <number>", "Hermes max tool-calling iterations", parsePositiveInt)
+  .option("--timeout <seconds>", "max seconds before Hermes is terminated", parsePositiveInt)
   .option("--source <name>", "Hermes source tag")
   .option("--yolo", "bypass bridge policy and pass --yolo to Hermes", false)
   .option("--dry-run", "print the Hermes command and prompt without executing", false)
@@ -76,6 +77,7 @@ program
       model: options.model,
       maxTurns: options.maxTurns,
       source: options.source,
+      timeoutSeconds: options.timeout,
     });
     const result = await runHermesCli(config, run, options.dryRun);
     if (options.json) {
@@ -228,6 +230,7 @@ interface RunCommandOptions {
   provider?: string;
   model?: string;
   maxTurns?: number;
+  timeout?: number;
   source?: string;
   yolo: boolean;
   dryRun: boolean;

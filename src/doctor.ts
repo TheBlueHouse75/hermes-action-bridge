@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { defaultConfig } from "./config.js";
-import { checkHermesStatus } from "./status.js";
+import { checkHermesStatus, versionProbeTimeoutMs } from "./status.js";
 import { buildEffectiveRun } from "./run.js";
 import { runHermesCli } from "./adapters/hermes-cli.js";
 import { skillStates } from "./install/install-service.js";
@@ -79,7 +79,7 @@ function hermesCheck(config: BridgeConfig): DoctorCheck {
 
 function agentAvailabilityCheck(agent: SkillAgent): DoctorCheck {
   const command = agentCommand[agent];
-  const result = spawnSync(command, ["--version"], { encoding: "utf8" });
+  const result = spawnSync(command, ["--version"], { encoding: "utf8", timeout: versionProbeTimeoutMs });
   if (result.error) return { id: agent, status: "warn", detail: `${command} not found on PATH` };
   if (result.status !== 0) return { id: agent, status: "warn", detail: `${command} --version exited with ${result.status ?? `signal ${result.signal}`}` };
   return { id: agent, status: "pass", detail: result.stdout.trim() || result.stderr.trim() };

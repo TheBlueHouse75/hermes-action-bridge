@@ -1,6 +1,14 @@
-import type { BridgeConfig, EffectiveRun, RunOptions } from "./types.js";
+import type { BridgeConfig, BridgeMode, EffectiveRun, RunOptions } from "./types.js";
 import { applyPolicy } from "./policy.js";
 import { readContextFiles } from "./context.js";
+
+/**
+ * Per-mode timeout defaults (seconds): plan/draft are cheap; execute/request-approval may run real tools.
+ * The timeout covers the whole session (chat -Q has no streaming), so defaults stay generous.
+ */
+function defaultTimeoutSeconds(mode: BridgeMode): number {
+  return mode === "execute" || mode === "request-approval" ? 600 : 180;
+}
 
 export function buildEffectiveRun(config: BridgeConfig, options: RunOptions): EffectiveRun {
   const presetName = options.preset || config.defaults.preset;
@@ -24,5 +32,6 @@ export function buildEffectiveRun(config: BridgeConfig, options: RunOptions): Ef
     yolo,
     detectedRisks: decision.detectedRisks,
     contextDocuments: readContextFiles(options.contextFiles, config.runtime.maxContextBytes),
+    timeoutSeconds: options.timeoutSeconds ?? config.runtime.timeoutSeconds ?? defaultTimeoutSeconds(decision.mode),
   };
 }

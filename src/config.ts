@@ -35,6 +35,7 @@ const rawConfigSchema = z.object({
       adapter: z.literal("hermes-cli").default("hermes-cli"),
       command: z.string().min(1).default("hermes"),
       max_context_bytes: z.number().int().positive().default(defaultMaxContextBytes),
+      timeout_seconds: z.number().int().positive().optional(),
     })
     .default({ adapter: "hermes-cli", command: "hermes", max_context_bytes: defaultMaxContextBytes }),
   defaults: z
@@ -141,6 +142,7 @@ function toRaw(config: BridgeConfig): Record<string, unknown> {
       adapter: config.runtime.adapter,
       command: config.runtime.command,
       max_context_bytes: config.runtime.maxContextBytes,
+      timeout_seconds: config.runtime.timeoutSeconds,
     },
     defaults: {
       mode: config.defaults.mode,
@@ -174,6 +176,7 @@ function normalizeConfig(raw: RawConfig): BridgeConfig {
       adapter: raw.runtime.adapter,
       command: raw.runtime.command,
       maxContextBytes: raw.runtime.max_context_bytes,
+      timeoutSeconds: raw.runtime.timeout_seconds,
     },
     defaults: {
       mode: raw.defaults.mode,

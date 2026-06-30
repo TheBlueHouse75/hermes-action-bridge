@@ -8,6 +8,8 @@ export interface RuntimeConfig {
   command: string;
   /** Aggregate budget across all --context files (bytes). Default leaves headroom under ARG_MAX; the adapter does the precise envelope-size check. */
   maxContextBytes: number;
+  /** Overall child-process timeout (seconds). When unset, per-mode defaults apply (see run.ts). */
+  timeoutSeconds?: number | undefined;
 }
 
 export interface PresetConfig {
@@ -63,6 +65,7 @@ export interface RunOptions {
   model?: string | undefined;
   maxTurns?: number | undefined;
   source?: string | undefined;
+  timeoutSeconds?: number | undefined;
 }
 
 export interface ContextDocument {
@@ -84,6 +87,8 @@ export interface EffectiveRun {
   yolo: boolean;
   detectedRisks: RiskCategory[];
   contextDocuments: ContextDocument[];
+  /** Resolved overall timeout for this run (seconds). Covers the whole session — chat -Q emits only the final response, so there is no per-turn timeout. */
+  timeoutSeconds: number;
 }
 
 export interface AdapterResult {
@@ -94,4 +99,6 @@ export interface AdapterResult {
   command: string[];
   prompt: string;
   dryRun: boolean;
+  /** True when the child was killed because it exceeded the timeout. */
+  timedOut?: boolean;
 }
