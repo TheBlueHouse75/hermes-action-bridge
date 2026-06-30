@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { defaultConfig } from "./config.js";
 import { checkHermesStatus, versionProbeTimeoutMs } from "./status.js";
-import { buildEffectiveRun } from "./run.js";
+import { buildEffectiveRun, defaultTimeoutSeconds } from "./run.js";
 import { runHermesCli } from "./adapters/hermes-cli.js";
 import { skillStates } from "./install/install-service.js";
 import type { BridgeConfig } from "./types.js";
@@ -25,7 +25,7 @@ const agentCommand: Record<SkillAgent, string> = { "claude-code": "claude", code
 
 /** Synchronous environment checks. The optional `--probe` check is added separately by the caller. */
 export function coreChecks(config: BridgeConfig | null, ctx: PathContext, configError?: string): DoctorCheck[] {
-  const checks: DoctorCheck[] = [nodeCheck(), configCheck(config, configError), hermesCheck(config ?? defaultConfig)];
+  const checks: DoctorCheck[] = [nodeCheck(), configCheck(config, configError), hermesCheck(config ?? defaultConfig), limitsCheck(config ?? defaultConfig)];
   for (const agent of Object.keys(agentCommand) as SkillAgent[]) {
     checks.push(agentAvailabilityCheck(agent));
   }
@@ -75,6 +75,14 @@ function hermesCheck(config: BridgeConfig): DoctorCheck {
   const status = checkHermesStatus(config);
   if (status.available) return { id: "hermes", status: "pass", detail: status.version };
   return { id: "hermes", status: "fail", detail: status.error };
+}
+
+/** Surfaces the effective runtime limits so users can see why a large run is rejected or timed out. */
+function limitsCheck(config: BridgeConfig): DoctorCheck {
+  const timeout = config.runtime.timeoutSeconds
+    ? `${config.runtime.timeoutSeconds}s (configured)`
+    : `${defaultTimeoutSeconds("plan")}s plan / ${defaultTimeoutSeconds("execute")}s execute`;
+  return { id: "limits", status: "pass", detail: `context ≤ ${config.runtime.maxContextBytes} bytes, timeout ${timeout}` };
 }
 
 function agentAvailabilityCheck(agent: SkillAgent): DoctorCheck {

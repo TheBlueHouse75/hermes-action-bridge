@@ -6,7 +6,7 @@ import { readContextFiles } from "./context.js";
  * Per-mode timeout defaults (seconds): plan/draft are cheap; execute/request-approval may run real tools.
  * The timeout covers the whole session (chat -Q has no streaming), so defaults stay generous.
  */
-function defaultTimeoutSeconds(mode: BridgeMode): number {
+export function defaultTimeoutSeconds(mode: BridgeMode): number {
   return mode === "execute" || mode === "request-approval" ? 600 : 180;
 }
 

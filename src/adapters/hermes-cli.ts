@@ -24,7 +24,9 @@ export async function runHermesCli(config: BridgeConfig, run: EffectiveRun, dryR
   const args = buildHermesCliArgs(run, prompt);
   const command = [config.runtime.command, ...args];
   if (dryRun) {
-    return { ok: true, exitCode: 0, stdout: JSON.stringify({ command, prompt }, null, 2), stderr: "", command, prompt, dryRun: true };
+    const promptBytes = Buffer.byteLength(prompt, "utf8");
+    const stdout = JSON.stringify({ command, prompt, promptBytes, promptChars: prompt.length }, null, 2);
+    return { ok: true, exitCode: 0, stdout, stderr: "", command, prompt, dryRun: true };
   }
 
   return new Promise((resolve) => {

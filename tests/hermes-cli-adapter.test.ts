@@ -39,6 +39,16 @@ describe("Hermes CLI adapter", () => {
     expect(buildHermesCliArgs(run({ yolo: true }))).toContain("--yolo");
   });
 
+  it("reports the computed prompt size in a dry run", async () => {
+    const config = { ...defaultConfig, runtime: { ...defaultConfig.runtime, command: "hermes" } };
+    const result = await runHermesCli(config, run(), true);
+    expect(result.dryRun).toBe(true);
+    const payload = JSON.parse(result.stdout) as { promptBytes: number; promptChars: number };
+    expect(payload.promptBytes).toBeGreaterThan(0);
+    expect(payload.promptChars).toBeGreaterThan(0);
+    expect(payload.promptBytes).toBe(Buffer.byteLength(result.prompt, "utf8"));
+  });
+
   it("terminates Hermes and flags timedOut when the timeout is exceeded", async () => {
     const dir = mkdtempSync(join(tmpdir(), "hermes-action-timeout-"));
     const fakeHermes = join(dir, "fake-hermes.js");

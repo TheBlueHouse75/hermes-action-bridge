@@ -32,10 +32,11 @@ describe("doctor", () => {
     const report = toReport(coreChecks(configWith(fakeHermes(dir)), ctx));
     expect(report.ok).toBe(true);
     expect(report.checks.map((check) => check.id)).toEqual(
-      expect.arrayContaining(["node", "config", "hermes", "skill:claude-code", "skill:codex"]),
+      expect.arrayContaining(["node", "config", "hermes", "limits", "skill:claude-code", "skill:codex"]),
     );
     expect(report.checks.find((check) => check.id === "hermes")?.status).toBe("pass");
     expect(report.checks.find((check) => check.id === "skill:claude-code")?.status).toBe("warn");
+    expect(report.checks.find((check) => check.id === "limits")?.detail).toContain(String(defaultConfig.runtime.maxContextBytes));
   });
 
   it("fails when configuration cannot be loaded", () => {
