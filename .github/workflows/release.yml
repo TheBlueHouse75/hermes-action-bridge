@@ -35,3 +35,20 @@ jobs:
 
       - name: Publish to npm via OIDC Trusted Publishing
         run: npm publish
+
+      # Publish the MCP server to the official MCP Registry (registry.modelcontextprotocol.io).
+      # Auth is GitHub OIDC (no token): the workflow's identity authorizes the
+      # io.github.thebluehouse75/* namespace declared in server.json.
+      - name: Install mcp-publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+
+      - name: Sync server.json version from package.json
+        run: |
+          node -e "const fs=require('fs');const pkg=require('./package.json');const s=require('./server.json');s.version=pkg.version;s.packages[0].version=pkg.version;fs.writeFileSync('./server.json',JSON.stringify(s,null,2)+'\n')"
+
+      - name: Authenticate to MCP Registry (GitHub OIDC)
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish server to MCP Registry
+        run: ./mcp-publisher publish
