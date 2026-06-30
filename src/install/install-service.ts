@@ -1,9 +1,9 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { instructionFile, skillDir } from "./paths.js";
 import { projectHint, skillMarkdown } from "./templates.js";
 import { classifyBundle, removeBundle, writeBundle, type ManagedBundle } from "./managed-file.js";
-import { removeBlock, upsertBlock, type MarkerResult } from "./marker-block.js";
+import { removeBlock, upsertBlock } from "./marker-block.js";
+import { applyFileEdit } from "./file-edit.js";
 import type { FileChange, InstallOptions, InstallScope, ManagedState, PathContext, SkillAgent } from "./types.js";
 
 export type SkillTarget = SkillAgent | "all";
@@ -62,24 +62,16 @@ export function uninstallSkills(target: SkillTarget, ctx: PathContext, options: 
   return perAgent(target, (agent) => skillDir(agent, ctx, options.scope), (dir) => removeBundle(dir, options));
 }
 
-function editInstructionFile(file: string, edit: (existing: string | null) => MarkerResult, dryRun: boolean): FileChange[] {
-  const existing = existsSync(file) ? readFileSync(file, "utf8") : null;
-  const result = edit(existing);
-  const writes = result.action !== "unchanged" && result.action !== "refused";
-  if (writes && !dryRun) writeFileSync(file, result.content, "utf8");
-  return [{ path: file, action: result.action, reason: result.reason }];
-}
-
 export function installHint(target: SkillTarget, ctx: PathContext, options: ServiceOptions): TargetResult[] {
-  return perAgent(target, (agent) => instructionFile(agent, ctx), (file) =>
-    editInstructionFile(file, (existing) => upsertBlock(existing, projectHint()), options.dryRun),
-  );
+  return perAgent(target, (agent) => instructionFile(agent, ctx), (file) => [
+    applyFileEdit(file, (existing) => upsertBlock(existing, projectHint()), options.dryRun),
+  ]);
 }
 
 export function uninstallHint(target: SkillTarget, ctx: PathContext, options: ServiceOptions): TargetResult[] {
-  return perAgent(target, (agent) => instructionFile(agent, ctx), (file) =>
-    editInstructionFile(file, (existing) => (existing === null ? { content: "", action: "unchanged" } : removeBlock(existing)), options.dryRun),
-  );
+  return perAgent(target, (agent) => instructionFile(agent, ctx), (file) => [
+    applyFileEdit(file, (existing) => (existing === null ? { content: "", action: "unchanged" } : removeBlock(existing)), options.dryRun),
+  ]);
 }
 
 export function previewSkills(target: SkillTarget, ctx: PathContext, scope: InstallScope): SkillPreview[] {

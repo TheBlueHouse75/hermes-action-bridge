@@ -54,12 +54,12 @@ describe("install CLI", () => {
     expect(readFileSync(claudeSkill(h), "utf8")).toBe("my own skill\n");
   }, 30_000);
 
-  it("uninstalls a managed skill and defers unsupported targets", () => {
+  it("uninstalls a managed skill and prints MCP config for the mcp target", () => {
     const h = home();
     run(h, ["install", "all"]);
     expect(run(h, ["uninstall", "all"]).stdout).toContain("removed");
     expect(existsSync(claudeSkill(h))).toBe(false);
-    expect(run(h, ["install", "mcp"]).stdout).toContain("Not available yet");
+    expect(run(h, ["install", "mcp"]).stdout).toContain("[mcp_servers.hermes-action]");
   }, 30_000);
 
   it("adds and removes a project hint without losing existing content", () => {
@@ -74,5 +74,27 @@ describe("install CLI", () => {
     const afterRemoval = readFileSync(join(project, "CLAUDE.md"), "utf8");
     expect(afterRemoval).toContain("# My rules");
     expect(afterRemoval).not.toContain("hermes-action-bridge:start");
+  }, 30_000);
+
+  it("writes a project-scoped skill without creating the global one", () => {
+    const h = home();
+    const project = home();
+    run(h, ["install", "claude-code", "--project"], project);
+    expect(existsSync(join(project, ".claude", "skills", "hermes-action-bridge", "SKILL.md"))).toBe(true);
+    expect(existsSync(claudeSkill(h))).toBe(false);
+  }, 30_000);
+
+  it("merges and unmerges the project .mcp.json, preserving other servers", () => {
+    const h = home();
+    const project = home();
+    writeFileSync(join(project, ".mcp.json"), JSON.stringify({ mcpServers: { other: { command: "x" } } }, null, 2));
+    run(h, ["install", "mcp", "--write"], project);
+    const merged = JSON.parse(readFileSync(join(project, ".mcp.json"), "utf8"));
+    expect(merged.mcpServers.other).toBeDefined();
+    expect(merged.mcpServers["hermes-action"]).toBeDefined();
+    run(h, ["uninstall", "mcp", "--write"], project);
+    const after = JSON.parse(readFileSync(join(project, ".mcp.json"), "utf8"));
+    expect(after.mcpServers["hermes-action"]).toBeUndefined();
+    expect(after.mcpServers.other).toBeDefined();
   }, 30_000);
 });

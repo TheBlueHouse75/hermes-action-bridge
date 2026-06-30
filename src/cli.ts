@@ -10,8 +10,9 @@ import { checkHermesStatus } from "./status.js";
 import { startMcpServer } from "./mcp-server.js";
 import { version } from "./version.js";
 import { installHint, installSkills, previewSkills, uninstallHint, uninstallSkills, type ServiceOptions, type SkillTarget, type TargetResult } from "./install/install-service.js";
+import { mcpSnippets, removeMcpJson, writeMcpJson } from "./install/mcp-config.js";
 import { coreChecks, formatDoctor, probeCheck, toReport } from "./doctor.js";
-import type { PathContext } from "./install/types.js";
+import type { FileChange, InstallScope, PathContext } from "./install/types.js";
 import type { BridgeConfig } from "./types.js";
 import type { BridgeMode } from "./types.js";
 
@@ -123,29 +124,29 @@ program
     await startMcpServer(options.config);
   });
 
-const deferredNotice =
-  "Not available yet — ships in a later release. For now use a global skill: hermes-action install <claude-code|codex|all>.";
-
 program
   .command("install")
-  .description("Install the hermes-action-bridge skill for a coding agent")
+  .description("Install the hermes-action-bridge skill (or print/write MCP config) for a coding agent")
   .addArgument(new Argument("<target>", "which agent").choices(["claude-code", "codex", "all", "mcp"]))
-  .option("--project", "install a project-local skill (later release)", false)
+  .option("--project", "install a project-local skill instead of the global one", false)
   .option("--project-hint", "also add a hint block to CLAUDE.md / AGENTS.md", false)
-  .option("--mcp", "also configure MCP (later release)", false)
+  .option("--mcp", "also print the MCP config snippets", false)
+  .option("--write", "for the mcp target, write/merge the project .mcp.json (Claude Code)", false)
   .option("--force", "replace an existing managed skill", false)
   .option("--dry-run", "print planned operations, write nothing", false)
   .option("--print", "print the generated skill content, write nothing", false)
   .option("--yes", "non-interactive", false)
   .action((target: string, options: InstallCommandOptions) => {
-    if (isDeferred(target, options)) {
-      console.log(deferredNotice);
+    const ctx = pathContext();
+    if (target === "mcp") {
+      if (options.write) reportChange(writeMcpJson(mcpJsonPath(ctx), options.dryRun), options.dryRun);
+      else printMcpSnippets();
       return;
     }
     const skillTarget = target as SkillTarget;
-    const ctx = pathContext();
+    const scope: InstallScope = options.project ? "project" : "global";
     if (options.print) {
-      for (const preview of previewSkills(skillTarget, ctx, "global")) {
+      for (const preview of previewSkills(skillTarget, ctx, scope)) {
         for (const file of preview.files) {
           console.log(`# ${preview.agent} -> ${file.path}`);
           console.log(file.content);
@@ -153,29 +154,33 @@ program
       }
       return;
     }
-    const opts = serviceOptions(options);
+    const opts = serviceOptions(options, scope);
     const results = installSkills(skillTarget, ctx, opts);
     if (options.projectHint) results.push(...installHint(skillTarget, ctx, opts));
     reportResults(results, options.dryRun);
+    if (options.mcp) printMcpSnippets();
   });
 
 program
   .command("uninstall")
-  .description("Remove the hermes-action-bridge skill for a coding agent")
+  .description("Remove the hermes-action-bridge skill (or MCP config) for a coding agent")
   .addArgument(new Argument("<target>", "which agent").choices(["claude-code", "codex", "all", "mcp"]))
-  .option("--project", "remove a project-local skill (later release)", false)
+  .option("--project", "remove a project-local skill instead of the global one", false)
   .option("--project-hint", "also remove the CLAUDE.md / AGENTS.md hint block", false)
+  .option("--write", "for the mcp target, remove hermes-action from the project .mcp.json", false)
   .option("--force", "remove even a locally modified skill", false)
   .option("--dry-run", "print planned removals, write nothing", false)
   .option("--yes", "non-interactive", false)
   .action((target: string, options: UninstallCommandOptions) => {
-    if (isDeferred(target, options)) {
-      console.log(deferredNotice);
+    const ctx = pathContext();
+    if (target === "mcp") {
+      if (options.write) reportChange(removeMcpJson(mcpJsonPath(ctx), options.dryRun), options.dryRun);
+      else console.log("Use --write to remove hermes-action from the project .mcp.json.");
       return;
     }
     const skillTarget = target as SkillTarget;
-    const ctx = pathContext();
-    const opts = serviceOptions(options);
+    const scope: InstallScope = options.project ? "project" : "global";
+    const opts = serviceOptions(options, scope);
     const results = uninstallSkills(skillTarget, ctx, opts);
     if (options.projectHint) results.push(...uninstallHint(skillTarget, ctx, opts));
     reportResults(results, options.dryRun);
@@ -239,6 +244,7 @@ interface InstallCommandOptions {
   project: boolean;
   projectHint: boolean;
   mcp: boolean;
+  write: boolean;
   force: boolean;
   dryRun: boolean;
   print: boolean;
@@ -247,16 +253,32 @@ interface InstallCommandOptions {
 
 type UninstallCommandOptions = Omit<InstallCommandOptions, "mcp" | "print">;
 
-function isDeferred(target: string, options: { project: boolean; mcp?: boolean }): boolean {
-  return target === "mcp" || options.project || Boolean(options.mcp);
-}
-
 function pathContext(): PathContext {
   return { homeDir: homedir(), cwd: process.cwd() };
 }
 
-function serviceOptions(options: { force: boolean; dryRun: boolean }): ServiceOptions {
-  return { scope: "global", force: options.force, dryRun: options.dryRun };
+function mcpJsonPath(ctx: PathContext): string {
+  return resolve(ctx.cwd, ".mcp.json");
+}
+
+function serviceOptions(options: { force: boolean; dryRun: boolean }, scope: InstallScope): ServiceOptions {
+  return { scope, force: options.force, dryRun: options.dryRun };
+}
+
+function printMcpSnippets(): void {
+  for (const snippet of mcpSnippets()) {
+    console.log(`# ${snippet.client} (${snippet.location})`);
+    console.log(snippet.content);
+  }
+}
+
+function reportChange(change: FileChange, dryRun: boolean): void {
+  if (change.action === "refused") {
+    console.error(`refused (${change.reason ?? "unknown reason"})`);
+    process.exitCode = 1;
+  } else {
+    console.log(`${change.action} ${change.path}${dryRun ? " (dry-run)" : ""}`);
+  }
 }
 
 function reportResults(results: TargetResult[], dryRun: boolean): void {

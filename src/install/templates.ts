@@ -76,13 +76,13 @@ export function projectHint(): string {
   ].join("\n");
 }
 
+/** Canonical MCP server entry for hermes-action, shared by the printed snippets and the .mcp.json writer. */
+export const mcpServerName = "hermes-action";
+export const mcpServerEntry = { command: "hermes-action", args: ["mcp"] } as const;
+
 /** MCP config snippet for JSON clients (Claude Code, Cursor, VS Code). */
 export function mcpSnippetJson(): string {
-  return `${JSON.stringify(
-    { mcpServers: { "hermes-action": { command: "hermes-action", args: ["mcp"] } } },
-    null,
-    2,
-  )}\n`;
+  return `${JSON.stringify({ mcpServers: { [mcpServerName]: mcpServerEntry } }, null, 2)}\n`;
 }
 
 /** MCP config snippet for Codex (`~/.codex/config.toml`, TOML format). */
