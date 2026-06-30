@@ -21,6 +21,8 @@ export interface PresetConfig {
   profile?: string | undefined;
   maxTurns?: number | undefined;
   source?: string | undefined;
+  /** Per-preset override of the risk categories that force request-approval. Falls back to the global policy when unset. */
+  requireApprovalFor?: RiskCategory[] | undefined;
 }
 
 export interface DefaultsConfig {

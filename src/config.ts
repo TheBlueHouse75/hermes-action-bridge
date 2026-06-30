@@ -59,6 +59,7 @@ const rawConfigSchema = z.object({
         profile: z.string().optional(),
         max_turns: z.number().int().positive().optional(),
         source: z.string().optional(),
+        require_approval_for: z.array(riskSchema).optional(),
       }),
     )
     .default({ default: { skills: [], toolsets: [] } }),
@@ -163,6 +164,7 @@ function toRaw(config: BridgeConfig): Record<string, unknown> {
           profile: preset.profile,
           max_turns: preset.maxTurns,
           source: preset.source,
+          require_approval_for: preset.requireApprovalFor,
         },
       ]),
     ),
@@ -197,6 +199,7 @@ function normalizeConfig(raw: RawConfig): BridgeConfig {
           profile: preset.profile,
           maxTurns: preset.max_turns,
           source: preset.source,
+          requireApprovalFor: preset.require_approval_for,
         },
       ]),
     ),

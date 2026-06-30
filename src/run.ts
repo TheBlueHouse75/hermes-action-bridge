@@ -1,4 +1,4 @@
-import type { BridgeConfig, BridgeMode, EffectiveRun, RunOptions } from "./types.js";
+import type { BridgeConfig, BridgeMode, EffectiveRun, PolicyConfig, RunOptions } from "./types.js";
 import { applyPolicy } from "./policy.js";
 import { readContextFiles } from "./context.js";
 
@@ -16,7 +16,11 @@ export function buildEffectiveRun(config: BridgeConfig, options: RunOptions): Ef
   if (!preset) throw new Error(`Unknown preset: ${presetName}`);
   const requestedMode = options.mode || config.defaults.mode;
   const yolo = options.yolo || config.policy.yolo;
-  const decision = applyPolicy(requestedMode, config.policy, options.prompt, yolo);
+  const effectivePolicy: PolicyConfig = {
+    yolo: config.policy.yolo,
+    requireApprovalFor: preset.requireApprovalFor ?? config.policy.requireApprovalFor,
+  };
+  const decision = applyPolicy(requestedMode, effectivePolicy, options.prompt, yolo);
 
   return {
     mode: decision.mode,
