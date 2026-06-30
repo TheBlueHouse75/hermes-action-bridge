@@ -38,7 +38,7 @@ jobs:
 
       # Publish the MCP server to the official MCP Registry (registry.modelcontextprotocol.io).
       # Auth is GitHub OIDC (no token): the workflow's identity authorizes the
-      # io.github.thebluehouse75/* namespace declared in server.json.
+      # io.github.TheBlueHouse75/* namespace declared in server.json.
       - name: Install mcp-publisher
         run: |
           curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher

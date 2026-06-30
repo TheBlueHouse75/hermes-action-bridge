@@ -1,19 +1,19 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.thebluehouse75/hermes-action-bridge",
+  "name": "io.github.TheBlueHouse75/hermes-action-bridge",
   "description": "Delegate real-world actions from Claude Code, Codex, and other agents to Hermes Agent.",
   "title": "Hermes Action Bridge",
   "repository": {
     "url": "https://github.com/TheBlueHouse75/hermes-action-bridge",
     "source": "github"
   },
-  "version": "0.2.2",
+  "version": "0.2.3",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "hermes-action-bridge",
-      "version": "0.2.2",
+      "version": "0.2.3",
       "transport": {
         "type": "stdio"
       },
