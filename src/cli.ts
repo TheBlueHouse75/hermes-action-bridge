@@ -9,8 +9,10 @@ import { runHermesCli } from "./adapters/hermes-cli.js";
 import { checkHermesStatus } from "./status.js";
 import { startMcpServer } from "./mcp-server.js";
 import { version } from "./version.js";
-import { installSkills, previewSkills, uninstallSkills, type ServiceOptions, type SkillTarget, type TargetResult } from "./install/install-service.js";
+import { installHint, installSkills, previewSkills, uninstallHint, uninstallSkills, type ServiceOptions, type SkillTarget, type TargetResult } from "./install/install-service.js";
+import { coreChecks, formatDoctor, probeCheck, toReport } from "./doctor.js";
 import type { PathContext } from "./install/types.js";
+import type { BridgeConfig } from "./types.js";
 import type { BridgeMode } from "./types.js";
 
 const program = new Command();
@@ -129,7 +131,7 @@ program
   .description("Install the hermes-action-bridge skill for a coding agent")
   .addArgument(new Argument("<target>", "which agent").choices(["claude-code", "codex", "all", "mcp"]))
   .option("--project", "install a project-local skill (later release)", false)
-  .option("--project-hint", "add a hint to CLAUDE.md / AGENTS.md (later release)", false)
+  .option("--project-hint", "also add a hint block to CLAUDE.md / AGENTS.md", false)
   .option("--mcp", "also configure MCP (later release)", false)
   .option("--force", "replace an existing managed skill", false)
   .option("--dry-run", "print planned operations, write nothing", false)
@@ -151,7 +153,10 @@ program
       }
       return;
     }
-    reportResults(installSkills(skillTarget, ctx, serviceOptions(options)), options.dryRun);
+    const opts = serviceOptions(options);
+    const results = installSkills(skillTarget, ctx, opts);
+    if (options.projectHint) results.push(...installHint(skillTarget, ctx, opts));
+    reportResults(results, options.dryRun);
   });
 
 program
@@ -159,7 +164,7 @@ program
   .description("Remove the hermes-action-bridge skill for a coding agent")
   .addArgument(new Argument("<target>", "which agent").choices(["claude-code", "codex", "all", "mcp"]))
   .option("--project", "remove a project-local skill (later release)", false)
-  .option("--project-hint", "remove the CLAUDE.md / AGENTS.md hint (later release)", false)
+  .option("--project-hint", "also remove the CLAUDE.md / AGENTS.md hint block", false)
   .option("--force", "remove even a locally modified skill", false)
   .option("--dry-run", "print planned removals, write nothing", false)
   .option("--yes", "non-interactive", false)
@@ -168,7 +173,40 @@ program
       console.log(deferredNotice);
       return;
     }
-    reportResults(uninstallSkills(target as SkillTarget, pathContext(), serviceOptions(options)), options.dryRun);
+    const skillTarget = target as SkillTarget;
+    const ctx = pathContext();
+    const opts = serviceOptions(options);
+    const results = uninstallSkills(skillTarget, ctx, opts);
+    if (options.projectHint) results.push(...uninstallHint(skillTarget, ctx, opts));
+    reportResults(results, options.dryRun);
+  });
+
+program
+  .command("doctor")
+  .description("Check the environment for using hermes-action and its skills")
+  .option("--config <path>", "config file path")
+  .option("--json", "print structured JSON", false)
+  .option("--probe", "additionally run a live Hermes plan call (spends provider tokens)", false)
+  .action(async (options: { config?: string; json: boolean; probe: boolean }) => {
+    const ctx = pathContext();
+    let config: BridgeConfig | null = null;
+    let configError: string | undefined;
+    try {
+      config = loadConfig(ctx.cwd, options.config);
+    } catch (error) {
+      configError = error instanceof Error ? error.message : String(error);
+    }
+    const checks = coreChecks(config, ctx, configError);
+    if (options.probe && config) {
+      try {
+        checks.push(await probeCheck(config));
+      } catch (error) {
+        checks.push({ id: "probe", status: "warn", detail: error instanceof Error ? error.message : String(error) });
+      }
+    }
+    const report = toReport(checks);
+    console.log(options.json ? JSON.stringify(report, null, 2) : formatDoctor(report));
+    process.exitCode = report.ok ? 0 : 1;
   });
 
 program.parseAsync(process.argv).catch((error: unknown) => {
@@ -209,8 +247,8 @@ interface InstallCommandOptions {
 
 type UninstallCommandOptions = Omit<InstallCommandOptions, "mcp" | "print">;
 
-function isDeferred(target: string, options: { project: boolean; projectHint: boolean; mcp?: boolean }): boolean {
-  return target === "mcp" || options.project || options.projectHint || Boolean(options.mcp);
+function isDeferred(target: string, options: { project: boolean; mcp?: boolean }): boolean {
+  return target === "mcp" || options.project || Boolean(options.mcp);
 }
 
 function pathContext(): PathContext {

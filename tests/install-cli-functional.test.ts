@@ -6,9 +6,9 @@ import { describe, expect, it } from "vitest";
 
 const cli = join(process.cwd(), "src", "cli.ts");
 
-function run(home: string, args: string[]): { stdout: string; stderr: string; status: number } {
+function run(home: string, args: string[], cwd: string = process.cwd()): { stdout: string; stderr: string; status: number } {
   try {
-    const stdout = execFileSync("npx", ["tsx", cli, ...args], { env: { ...process.env, HOME: home }, encoding: "utf8", stdio: "pipe" });
+    const stdout = execFileSync("npx", ["tsx", cli, ...args], { env: { ...process.env, HOME: home }, cwd, encoding: "utf8", stdio: "pipe" });
     return { stdout, stderr: "", status: 0 };
   } catch (error) {
     const e = error as { stdout?: string; stderr?: string; status?: number };
@@ -60,5 +60,19 @@ describe("install CLI", () => {
     expect(run(h, ["uninstall", "all"]).stdout).toContain("removed");
     expect(existsSync(claudeSkill(h))).toBe(false);
     expect(run(h, ["install", "mcp"]).stdout).toContain("Not available yet");
+  }, 30_000);
+
+  it("adds and removes a project hint without losing existing content", () => {
+    const h = home();
+    const project = home();
+    writeFileSync(join(project, "CLAUDE.md"), "# My rules\n");
+    run(h, ["install", "claude-code", "--project-hint"], project);
+    const withHint = readFileSync(join(project, "CLAUDE.md"), "utf8");
+    expect(withHint).toContain("# My rules");
+    expect(withHint).toContain("hermes-action-bridge:start");
+    run(h, ["uninstall", "claude-code", "--project-hint"], project);
+    const afterRemoval = readFileSync(join(project, "CLAUDE.md"), "utf8");
+    expect(afterRemoval).toContain("# My rules");
+    expect(afterRemoval).not.toContain("hermes-action-bridge:start");
   }, 30_000);
 });
