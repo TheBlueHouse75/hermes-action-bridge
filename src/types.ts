@@ -6,6 +6,8 @@ export type RuntimeAdapter = "hermes-cli";
 export interface RuntimeConfig {
   adapter: RuntimeAdapter;
   command: string;
+  /** Aggregate budget across all --context files (bytes). Default leaves headroom under ARG_MAX; the adapter does the precise envelope-size check. */
+  maxContextBytes: number;
 }
 
 export interface PresetConfig {

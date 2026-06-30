@@ -23,6 +23,6 @@ export function buildEffectiveRun(config: BridgeConfig, options: RunOptions): Ef
     maxTurns: options.maxTurns || preset.maxTurns || config.defaults.maxTurns,
     yolo,
     detectedRisks: decision.detectedRisks,
-    contextDocuments: readContextFiles(options.contextFiles),
+    contextDocuments: readContextFiles(options.contextFiles, config.runtime.maxContextBytes),
   };
 }

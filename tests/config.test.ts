@@ -35,6 +35,23 @@ describe("config", () => {
     expect(config.presets.research?.skills).toEqual(["research-growth-operations"]);
   });
 
+  it("defaults max_context_bytes and lets a project override it", () => {
+    const emptyXdg = mkdtempSync(join(tmpdir(), "hermes-action-xdg-empty-"));
+    const previous = process.env.XDG_CONFIG_HOME;
+    process.env.XDG_CONFIG_HOME = emptyXdg;
+    try {
+      const defaults = mkdtempSync(join(tmpdir(), "hermes-action-ctx-default-"));
+      expect(loadConfig(defaults).runtime.maxContextBytes).toBe(786_432);
+
+      const dir = mkdtempSync(join(tmpdir(), "hermes-action-ctx-override-"));
+      writeFileSync(join(dir, ".hermes-action.yaml"), "runtime:\n  command: fake-hermes\n  max_context_bytes: 1048576\n");
+      expect(loadConfig(dir).runtime.maxContextBytes).toBe(1_048_576);
+    } finally {
+      if (previous === undefined) delete process.env.XDG_CONFIG_HOME;
+      else process.env.XDG_CONFIG_HOME = previous;
+    }
+  });
+
   it("loads global config before project config", () => {
     const xdg = mkdtempSync(join(tmpdir(), "hermes-action-xdg-"));
     mkdirSync(join(xdg, "hermes-action"), { recursive: true });

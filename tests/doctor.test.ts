@@ -18,7 +18,7 @@ function fakeHermes(dir: string): string {
 }
 
 function configWith(command: string): BridgeConfig {
-  return { ...defaultConfig, runtime: { adapter: "hermes-cli", command } };
+  return { ...defaultConfig, runtime: { ...defaultConfig.runtime, command } };
 }
 
 function freshDir(): string {

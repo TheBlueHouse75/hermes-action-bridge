@@ -26,13 +26,17 @@ const defaultRequireApprovalFor: RiskCategory[] = [
   "credential_change",
 ];
 
+/** ~768 KiB: bounds total context with headroom under the ~1 MiB ARG_MAX for the header + prompt the envelope adds on top. */
+const defaultMaxContextBytes = 786_432;
+
 const rawConfigSchema = z.object({
   runtime: z
     .object({
       adapter: z.literal("hermes-cli").default("hermes-cli"),
       command: z.string().min(1).default("hermes"),
+      max_context_bytes: z.number().int().positive().default(defaultMaxContextBytes),
     })
-    .default({ adapter: "hermes-cli", command: "hermes" }),
+    .default({ adapter: "hermes-cli", command: "hermes", max_context_bytes: defaultMaxContextBytes }),
   defaults: z
     .object({
       mode: modeSchema.default("plan"),
@@ -68,7 +72,7 @@ const rawConfigSchema = z.object({
 type RawConfig = z.infer<typeof rawConfigSchema>;
 
 export const defaultConfig: BridgeConfig = {
-  runtime: { adapter: "hermes-cli", command: "hermes" },
+  runtime: { adapter: "hermes-cli", command: "hermes", maxContextBytes: defaultMaxContextBytes },
   defaults: { mode: "plan", source: "external-agent", maxTurns: 30, preset: "default" },
   presets: { default: { skills: [], toolsets: [] } },
   policy: {
@@ -79,7 +83,7 @@ export const defaultConfig: BridgeConfig = {
 
 export function defaultProjectConfig(): string {
   return YAML.stringify({
-    runtime: { adapter: "hermes-cli", command: "hermes" },
+    runtime: { adapter: "hermes-cli", command: "hermes", max_context_bytes: defaultMaxContextBytes },
     defaults: { mode: "plan", source: "external-agent", max_turns: 30, preset: "default" },
     presets: {
       default: { description: "No extra skills or toolsets. Uses the active Hermes profile.", skills: [], toolsets: [] },
@@ -133,7 +137,11 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function toRaw(config: BridgeConfig): Record<string, unknown> {
   return {
-    runtime: config.runtime,
+    runtime: {
+      adapter: config.runtime.adapter,
+      command: config.runtime.command,
+      max_context_bytes: config.runtime.maxContextBytes,
+    },
     defaults: {
       mode: config.defaults.mode,
       profile: config.defaults.profile,
@@ -162,7 +170,11 @@ function toRaw(config: BridgeConfig): Record<string, unknown> {
 
 function normalizeConfig(raw: RawConfig): BridgeConfig {
   return {
-    runtime: raw.runtime,
+    runtime: {
+      adapter: raw.runtime.adapter,
+      command: raw.runtime.command,
+      maxContextBytes: raw.runtime.max_context_bytes,
+    },
     defaults: {
       mode: raw.defaults.mode,
       profile: raw.defaults.profile,
