@@ -1,0 +1,19 @@
+runtime:
+  adapter: hermes-cli
+  command: hermes
+
+defaults:
+  mode: execute
+  source: trusted-local-agent
+  max_turns: 60
+  preset: default
+
+presets:
+  default:
+    description: Trusted local mode. Use only in isolated environments.
+    skills: []
+    toolsets: []
+
+policy:
+  yolo: true
+  require_approval_for: []

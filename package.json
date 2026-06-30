@@ -1,0 +1,50 @@
+{
+  "name": "hermes-action-bridge",
+  "version": "0.1.0",
+  "description": "Configurable bridge for external agents to delegate actions to Hermes Agent via CLI or MCP.",
+  "type": "module",
+  "bin": {
+    "hermes-action": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CONTRIBUTING.md",
+    "docs",
+    "examples"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "postbuild": "node -e \"require('node:fs').chmodSync('dist/cli.js', 0o755)\"",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run build && npm run test",
+    "prepublishOnly": "npm run check"
+  },
+  "keywords": [
+    "hermes-agent",
+    "codex",
+    "claude-code",
+    "mcp",
+    "agent",
+    "automation"
+  ],
+  "author": "Cyril Guilleminot",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "commander": "^15.0.0",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  }
+}

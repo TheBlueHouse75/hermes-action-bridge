@@ -1,0 +1,26 @@
+runtime:
+  adapter: hermes-cli
+  command: hermes
+
+defaults:
+  mode: request-approval
+  source: external-agent
+  max_turns: 20
+  preset: default
+
+presets:
+  default:
+    description: Safe default. Hermes can plan or prepare actions, but external effects require approval.
+    skills: []
+    toolsets: []
+
+policy:
+  yolo: false
+  require_approval_for:
+    - publish_external
+    - send_message
+    - send_email
+    - delete
+    - payment
+    - git_push
+    - credential_change

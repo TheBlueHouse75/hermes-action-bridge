@@ -1,0 +1,36 @@
+runtime:
+  adapter: hermes-cli
+  command: hermes
+
+defaults:
+  mode: plan
+  source: external-agent
+  max_turns: 30
+  preset: default
+
+presets:
+  default:
+    description: No extra skills or toolsets. Uses the active Hermes profile.
+    skills: []
+    toolsets: []
+
+  research:
+    description: General research and synthesis.
+    skills: []
+    toolsets: [web, terminal, file]
+
+  coding:
+    description: Repository inspection and runtime validation.
+    skills: [developer-assurance-and-validation, runtime-debugging]
+    toolsets: [terminal, file]
+
+policy:
+  yolo: false
+  require_approval_for:
+    - publish_external
+    - send_message
+    - send_email
+    - delete
+    - payment
+    - git_push
+    - credential_change
