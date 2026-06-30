@@ -311,6 +311,13 @@ Functional tests use a fake Hermes binary to verify command construction, prompt
 - Use `request-approval` for public posting, outbound email/messages, deletes, payments, credential changes, and git pushes.
 - Treat `--yolo` as a trusted-local-mode escape hatch, not as a default.
 
+## Also by the author
+
+Built by Cyril Guilleminot, who also makes offline-first voice tools:
+
+- [Weesper Neon Flow](https://weesperneonflow.ai) — speak text into any app at 3× typing speed, fully offline (macOS & Windows).
+- [Weesper Transcribe](https://apps.apple.com/app/id6778776535) — offline transcription on the macOS App Store.
+
 ## License
 
 MIT
