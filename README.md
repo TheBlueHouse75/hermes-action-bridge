@@ -24,10 +24,12 @@ If an agent needs to do something outside its local coding session — research,
 
 - Generic `hermes-action run` command for one-shot delegation.
 - Configurable presets for skills, toolsets, provider/model, profile, source, and max turns.
-- Safety policy that can downgrade risky `execute` requests to `request-approval`.
+- Safety policy that can downgrade risky `execute` requests to `request-approval`, with optional per-preset overrides.
 - Explicit `--yolo` mode for users who intentionally want to bypass bridge-level policy.
-- Context file injection with size limits.
-- Dry-run mode for debugging the exact Hermes command and prompt.
+- Context file injection with a per-file cap and a configurable aggregate budget (clear error instead of a cryptic `E2BIG`).
+- Automatic large-context delivery: an oversized prompt is handed to Hermes through a secure temp file instead of overflowing the command line.
+- Per-run timeouts (configurable, with per-mode defaults) that always reap the Hermes child process.
+- Dry-run mode for debugging the exact Hermes command, prompt, and computed prompt size.
 - Minimal MCP server exposing delegation tools: `hermes_run`, `hermes_plan`, `hermes_presets`, and `hermes_status`.
 - No project-specific assumptions. All behavior is configured through YAML and CLI flags.
 
@@ -156,6 +158,12 @@ Example:
 runtime:
   adapter: hermes-cli
   command: hermes
+  # Aggregate budget across all --context files, in bytes (default ~768 KiB).
+  # Raising this above ~896 KiB switches large prompts to temp-file delivery.
+  max_context_bytes: 786432
+  # Optional overall per-run timeout in seconds. When unset, per-mode defaults
+  # apply: 180s for plan/draft, 600s for execute/request-approval.
+  # timeout_seconds: 600
 
 defaults:
   mode: plan
@@ -173,6 +181,9 @@ presets:
     description: General research and synthesis.
     skills: []
     toolsets: [web, terminal, file]
+    # Per-preset override: relax approvals for a trusted preset.
+    # An empty list never downgrades execute to request-approval.
+    # require_approval_for: []
 
   coding:
     description: Repository inspection and runtime validation.
@@ -181,6 +192,7 @@ presets:
 
 policy:
   yolo: false
+  # Global default; a preset's own require_approval_for takes precedence when set.
   require_approval_for:
     - publish_external
     - send_message
@@ -190,6 +202,17 @@ policy:
     - git_push
     - credential_change
 ```
+
+## Limits, timeouts, and large context
+
+The bridge builds one prompt envelope (policy header + your request + every `<context>` block) and hands it to Hermes. Two guardrails keep that reliable:
+
+- **Aggregate context budget** (`runtime.max_context_bytes`, default ~768 KiB, plus a fixed 250 KiB per-file cap). Exceeding it fails fast with an actionable message — `Context total N bytes exceeds the limit ... Split your handoff or raise runtime.max_context_bytes.` — instead of a cryptic `E2BIG` spawn crash. The default leaves headroom under the operating system's argument-size limit.
+- **Large-context delivery.** If you raise the budget and the envelope grows past ~896 KiB, the adapter writes it to a `0600` temp file and tells Hermes to read that file (injecting a `file` toolset for the call). This sidesteps the OS argument limit. Two caveats: it adds one tool-calling turn, and the real ceiling becomes the model's context window — a multi-megabyte file may only be partially read. The temp file is removed after the run; only an uncatchable kill of the bridge process itself could leave it behind (mitigated by the `0600` mode and the OS temp reaper).
+
+Every run is bounded by a timeout (default 180s for `plan`/`draft`, 600s for `execute`/`request-approval`). Override per run with `--timeout <seconds>` or globally with `runtime.timeout_seconds`. On expiry the Hermes child is sent `SIGTERM`, then `SIGKILL` after a short grace, and the result is marked as timed out.
+
+`hermes-action doctor` prints the effective limits, and `hermes-action run --dry-run --json` reports the computed prompt size (`promptBytes`, `promptChars`) and whether delivery would use `argv` or a `temp-file`.
 
 ## CLI reference
 
@@ -215,6 +238,7 @@ Common `run` options:
 --provider <name>
 --model <name>
 --max-turns <number>
+--timeout <seconds>
 --source <name>
 --yolo
 --dry-run

@@ -23,8 +23,8 @@ Hermes skills, tools, browser automation, MCPs, cron jobs, messaging, APIs
 - `src/config.ts`: YAML config loading and normalization.
 - `src/policy.ts`: risk detection and mode switching.
 - `src/prompt.ts`: prompt envelope sent to Hermes.
-- `src/context.ts`: context file loading with size guardrails.
-- `src/adapters/hermes-cli.ts`: Hermes CLI adapter.
+- `src/context.ts`: context file loading with a per-file cap and an aggregate budget.
+- `src/adapters/hermes-cli.ts`: Hermes CLI adapter (argv or temp-file prompt delivery, child-process timeout).
 - `src/mcp-server.ts`: minimal MCP server.
 - `src/status.ts`: runtime availability check.
 - `src/version.ts`: single source of truth for the package version.
@@ -90,6 +90,17 @@ hermes-action run --yolo --mode execute "..."
 ```
 
 It bypasses the bridge policy only. Hermes Agent still enforces its own rules and any tool/provider/platform approval flow.
+
+## Prompt delivery and runtime limits
+
+The adapter builds one prompt envelope (policy header + request + `<context>` blocks) and delivers it to `hermes chat -Q`:
+
+- **Small envelopes** ride the command line as `-q <text>` — the original, lowest-overhead path.
+- **Large envelopes** (above ~896 KiB, kept below the OS `ARG_MAX`) are written to a `0600` file in a per-run `mkdtemp` directory; Hermes is given a short pointer query and a `file` toolset so it reads the file itself. This avoids `E2BIG`. The temp directory is removed on every exit path. The path is opt-in: the default context budget keeps envelopes below the threshold, so it engages only when `runtime.max_context_bytes` is raised.
+
+`src/context.ts` enforces a fixed 250 KiB per-file cap and a configurable aggregate budget so oversized handoffs fail with a clear message before reaching `spawn`.
+
+Every child process is bounded by a timeout (per-mode defaults, overridable via `--timeout` or `runtime.timeout_seconds`): on expiry it is sent `SIGTERM`, then `SIGKILL` after a grace period. The status/doctor `--version` probes use a short synchronous timeout for the same reason.
 
 ## MCP design
 
