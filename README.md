@@ -237,6 +237,17 @@ Install behavior is safe by default: it never modifies `CLAUDE.md` / `AGENTS.md`
 
 The generated skill is shown in [`examples/claude-code/SKILL.md`](examples/claude-code/SKILL.md). Project-hint usage is documented in [`examples/claude-code/CLAUDE.md`](examples/claude-code/CLAUDE.md) and [`examples/codex/AGENTS.md`](examples/codex/AGENTS.md).
 
+## Codex plugin (one-line install)
+
+Codex users can install the delegation skill and the MCP server together as a plugin:
+
+```bash
+codex plugin marketplace add TheBlueHouse75/hermes-action-bridge
+codex plugin add hermes-action@hermes-action-bridge
+```
+
+This registers the `hermes-action` MCP server and the Hermes delegation skill in Codex. Hermes Agent must be installed locally — the plugin runs `npx -y hermes-action-bridge mcp`.
+
 ## MCP configuration
 
 Print the config snippet for your client (Claude Code / Cursor / VS Code use JSON; Codex uses TOML):

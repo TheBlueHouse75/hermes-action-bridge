@@ -1,0 +1,8 @@
+{
+  "mcp_servers": {
+    "hermes-action": {
+      "command": "npx",
+      "args": ["-y", "hermes-action-bridge", "mcp"]
+    }
+  }
+}

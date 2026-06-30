@@ -1,0 +1,22 @@
+{
+  "name": "hermes-action-bridge",
+  "interface": {
+    "displayName": "Hermes Action Bridge"
+  },
+  "plugins": [
+    {
+      "name": "hermes-action",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/TheBlueHouse75/hermes-action-bridge.git",
+        "path": "./plugins/hermes-action",
+        "ref": "main"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

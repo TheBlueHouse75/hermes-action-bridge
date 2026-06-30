@@ -1,0 +1,30 @@
+{
+  "name": "hermes-action",
+  "version": "0.2.3",
+  "description": "Delegate real-world actions (research, browser, messaging, scheduling, Hermes skills/tools) to Hermes Agent.",
+  "author": {
+    "name": "Cyril Guilleminot",
+    "url": "https://github.com/TheBlueHouse75"
+  },
+  "homepage": "https://github.com/TheBlueHouse75/hermes-action-bridge",
+  "repository": "https://github.com/TheBlueHouse75/hermes-action-bridge",
+  "license": "MIT",
+  "keywords": ["hermes-agent", "mcp", "codex", "automation", "delegation"],
+  "mcpServers": "./.mcp.json",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Hermes Action Bridge",
+    "shortDescription": "Delegate real-world actions to Hermes Agent",
+    "longDescription": "Lets Codex delegate work outside the local coding session — research, browser workflows, messaging, scheduling, and any Hermes skill or tool — to Hermes Agent, instead of reimplementing them. Conservative safety policy (risky execute -> request-approval). Requires Hermes Agent installed locally.",
+    "developerName": "Cyril Guilleminot",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://github.com/TheBlueHouse75/hermes-action-bridge",
+    "brandColor": "#7C3AED",
+    "defaultPrompt": [
+      "Ask Hermes for a safe plan to handle the next real-world action from this repo's context."
+    ],
+    "composerIcon": "./assets/app-icon.png",
+    "logo": "./assets/app-icon.png"
+  }
+}

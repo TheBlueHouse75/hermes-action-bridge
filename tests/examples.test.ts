@@ -10,5 +10,8 @@ describe("examples", () => {
     const expected = skillMarkdown();
     expect(readFileSync(join(root, "examples", "claude-code", "SKILL.md"), "utf8")).toBe(expected);
     expect(readFileSync(join(root, "examples", "codex", "SKILL.md"), "utf8")).toBe(expected);
+    expect(
+      readFileSync(join(root, "plugins", "hermes-action", "skills", "hermes-action-bridge", "SKILL.md"), "utf8"),
+    ).toBe(expected);
   });
 });
