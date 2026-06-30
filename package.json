@@ -2,6 +2,14 @@
   "name": "hermes-action-bridge",
   "version": "0.2.0",
   "description": "Configurable bridge for external agents to delegate actions to Hermes Agent via CLI or MCP.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TheBlueHouse75/hermes-action-bridge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TheBlueHouse75/hermes-action-bridge/issues"
+  },
+  "homepage": "https://github.com/TheBlueHouse75/hermes-action-bridge#readme",
   "type": "module",
   "bin": {
     "hermes-action": "dist/cli.js"
