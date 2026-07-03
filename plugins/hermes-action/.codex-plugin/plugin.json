@@ -15,7 +15,7 @@
   "interface": {
     "displayName": "Hermes Action Bridge",
     "shortDescription": "Delegate real-world actions to Hermes Agent",
-    "longDescription": "Lets Codex delegate work outside the local coding session — research, browser workflows, messaging, scheduling, and any Hermes skill or tool — to Hermes Agent, instead of reimplementing them. Conservative safety policy (risky execute -> request-approval). Requires Hermes Agent installed locally.",
+    "longDescription": "Lets Codex delegate work outside the local coding session — research, browser workflows, messaging, scheduling, and any Hermes skill or tool — to Hermes Agent, instead of reimplementing them. Deterministic safety policy (execute -> request-approval by default unless trusted). Requires Hermes Agent installed locally.",
     "developerName": "Cyril Guilleminot",
     "category": "Developer Tools",
     "capabilities": ["Interactive", "Write"],

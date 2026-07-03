@@ -4,6 +4,39 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- MCP `hermes_run` now accepts `model`, `provider`, `maxTurns`, and `timeoutSeconds` overrides, so a
+  caller can pick a faster model or cap the tool-calling budget per request (previously only settable via a
+  preset).
+
+### Fixed
+
+- `install mcp --write` on an empty or whitespace-only `.mcp.json` (e.g. after `touch`) now initializes it
+  instead of failing with "not valid JSON".
+- `install mcp --write` no longer silently overwrites a customized `hermes-action` entry in `.mcp.json`; it
+  refuses with an actionable message so a custom command/args is never lost.
+- Removed the non-functional `profile` option (`--profile`, `defaults.profile`, `preset.profile`). The
+  Hermes CLI has no per-invocation profile flag — profiles are switched globally with `hermes profile use`
+  — so a configured profile made the bridge emit an invalid `hermes --profile … chat` command. Target a
+  specific Hermes profile via `runtime.command` (e.g. a `hermes profile alias` wrapper) instead.
+
+### Changed
+
+- **Policy is now deterministic and language-agnostic.** In `execute` mode the bridge downgrades to
+  `request-approval` by default — regardless of the prompt's wording or language — unless the preset is
+  explicitly trusted (empty `require_approval_for`) or `--yolo` is set. Previously the downgrade fired only
+  when an English keyword was detected, so non-English side-effecting prompts (e.g. `supprime…`, `paie…`)
+  silently ran in `execute`. Keyword risk detection is retained but is now **informational only** (surfaced
+  in the prompt envelope), never a security control. The real barrier is the host agent's approval prompt.
+
+### Documentation
+
+- Documented the security model: host-agent approval is the deterministic barrier; do not allowlist
+  `hermes-action run` (`execute`/`yolo`) in the coding agent.
+
 ## [0.3.0] - 2026-06-30
 
 Execution robustness and large-context support.

@@ -75,11 +75,11 @@ The bridge does not decide how Hermes completes the task. It only labels the req
 
 ## Policy
 
-Policy is intentionally conservative and transparent.
+The security barrier is the **host agent's approval prompt**, not the bridge. The bridge assumes a supervised caller (Claude Code / Codex) that asks the human to approve each command or tool call before it runs — a deterministic, language-agnostic gate. The bridge must never bypass it (it never injects `--yolo` or a oneshot flag).
 
-When a prompt contains risky intent and `mode=execute`, the bridge changes the effective mode to `request-approval` unless YOLO is enabled.
+The bridge's own guard is a secondary, deterministic net: in `mode=execute` it changes the effective mode to `request-approval` unless the preset/policy is explicitly trusted (empty `require_approval_for`) or YOLO is enabled. This is independent of the prompt's language or wording.
 
-The detected risks are included in the prompt envelope so Hermes knows why the mode changed.
+Keyword risk detection (`detectRisks`) is **informational only**: recognized categories are listed in the prompt envelope to help the human and Hermes decide, but they never drive the mode. Keyword matching is English-biased and easily evaded, so it is not treated as a security control.
 
 ## YOLO
 

@@ -23,8 +23,8 @@ If an agent needs to do something outside its local coding session — research,
 ## Features
 
 - Generic `hermes-action run` command for one-shot delegation.
-- Configurable presets for skills, toolsets, provider/model, profile, source, and max turns.
-- Safety policy that can downgrade risky `execute` requests to `request-approval`, with optional per-preset overrides.
+- Configurable presets for skills, toolsets, provider/model, source, and max turns.
+- Deterministic, language-agnostic safety policy: downgrades `execute` to `request-approval` by default, with per-preset trust overrides.
 - Explicit `--yolo` mode for users who intentionally want to bypass bridge-level policy.
 - Context file injection with a per-file cap and a configurable aggregate budget (clear error instead of a cryptic `E2BIG`).
 - Automatic large-context delivery: an oversized prompt is handed to Hermes through a secure temp file instead of overflowing the command line.
@@ -108,9 +108,9 @@ hermes-action run --dry-run --json "Summarize this project."
 - `execute`: Hermes may execute allowed actions, while still following Hermes' own safety rules.
 - `request-approval`: Hermes prepares the action and asks the human for approval before irreversible external effects.
 
-If the bridge detects a risky request in `execute` mode, it can automatically switch to `request-approval` unless YOLO is enabled.
+The guard is deterministic and language-agnostic: in `execute` mode the bridge switches to `request-approval` by default — regardless of the prompt's wording or language — unless the preset is explicitly trusted (empty `require_approval_for`) or `--yolo` is set. It does not try to infer risk from keywords. See [Security model](#security-model) for why the real barrier is your coding agent's own approval prompt.
 
-Risk categories:
+Risk categories below are **informational only**: the bridge surfaces the ones it recognizes in the prompt envelope to help you and Hermes decide, but they never drive the mode. (Keyword matching is English-biased and trivially evaded, so it must not be a security control.)
 
 - `publish_external`
 - `send_message`
@@ -234,7 +234,6 @@ Common `run` options:
 --preset <name>
 --context <path...>
 --config <path>
---profile <name>
 --provider <name>
 --model <name>
 --max-turns <number>
@@ -271,6 +270,8 @@ codex plugin add hermes-action@hermes-action-bridge
 ```
 
 This registers the `hermes-action` MCP server and the Hermes delegation skill in Codex. Hermes Agent must be installed locally — the plugin runs `npx -y hermes-action-bridge mcp`.
+
+> **Faster MCP startup:** `npx` re-resolves the package on every server start (~200 ms overhead, more on a cold cache). If you install the package globally (`npm install -g hermes-action-bridge`), point the MCP config at the binary — `command: "hermes-action"`, `args: ["mcp"]` — which is what `hermes-action install mcp` generates.
 
 ## MCP configuration
 
@@ -322,7 +323,7 @@ hermes-action mcp
 
 Exposed tools:
 
-- `hermes_run`: delegate a request to Hermes.
+- `hermes_run`: delegate a request to Hermes. Optional overrides: `mode`, `preset`, `contextFiles`, `yolo`, `dryRun`, and — to trade cost for speed on simple tasks — `model`, `provider`, `maxTurns`, `timeoutSeconds`.
 - `hermes_plan`: shortcut for `hermes_run` with `mode=plan`.
 - `hermes_presets`: list configured presets.
 - `hermes_status`: check the configured Hermes runtime command.
@@ -348,12 +349,15 @@ Functional tests use a fake Hermes binary to verify command construction, prompt
 - [Changelog](CHANGELOG.md): release history.
 - [Security policy](SECURITY.md): how to report a vulnerability.
 
-## Security notes
+## Security model
 
-- Do not put secrets in `.hermes-action.yaml`.
-- Keep provider credentials in Hermes Agent, your OS keychain, or the relevant platform's secure store.
-- Use `request-approval` for public posting, outbound email/messages, deletes, payments, credential changes, and git pushes.
-- Treat `--yolo` as a trusted-local-mode escape hatch, not as a default.
+The bridge assumes a **supervised host agent**: Claude Code / Codex ask you to approve each `hermes-action` command (or `hermes_run` tool call) before it runs. That host approval — not the keyword detection — is the real, deterministic, language-agnostic barrier, and it is what makes a French, German, or paraphrased request as safe as an English one.
+
+The bridge's own guard is a secondary net: `execute` is downgraded to `request-approval` by default unless a preset is trusted (empty `require_approval_for`) or `--yolo` is set. The bridge never injects `--yolo` or a bypass flag on its own.
+
+- **Do not allowlist / auto-approve `hermes-action run` (especially `--mode execute` or `--yolo`)** in your coding agent. A command-pattern allowlist cannot tell `run --mode plan` (safe) from `run --mode execute` (side effects); at most, `status`, `presets`, and `--dry-run` are safe to auto-approve.
+- Do not put secrets in `.hermes-action.yaml`. Keep provider credentials in Hermes Agent, your OS keychain, or the platform's secure store.
+- Treat `--yolo` as a trusted-local escape hatch, not a default.
 
 ## Also by the author
 

@@ -26,9 +26,16 @@ export function detectRisks(text: string): RiskCategory[] {
 }
 
 export function applyPolicy(requestedMode: BridgeMode, policy: PolicyConfig, prompt: string, yoloFlag: boolean): PolicyDecision {
+  // Detected risks are informative only: they are surfaced to the human and to Hermes, but they never
+  // decide the mode. Keyword matching cannot be a security barrier — it is English-biased and trivially
+  // evaded by paraphrase. The real, deterministic, language-agnostic barrier is the host agent's approval
+  // prompt (Claude Code / Codex asking the human before the call runs). See docs/ARCHITECTURE.md.
   const detectedRisks = detectRisks(prompt);
   const yolo = yoloFlag || policy.yolo;
-  const approvalRequired = !yolo && detectedRisks.some((risk) => policy.requireApprovalFor.includes(risk));
-  const mode = approvalRequired && requestedMode === "execute" ? "request-approval" : requestedMode;
+  // Deterministic guard: any `execute` is downgraded to request-approval unless this context is explicitly
+  // trusted (empty requireApprovalFor) or yolo is set. Independent of the prompt's language or wording.
+  const guardActive = policy.requireApprovalFor.length > 0;
+  const approvalRequired = !yolo && guardActive && requestedMode === "execute";
+  const mode = approvalRequired ? "request-approval" : requestedMode;
   return { mode, requestedMode, detectedRisks, approvalRequired };
 }
