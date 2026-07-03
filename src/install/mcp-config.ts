@@ -33,7 +33,10 @@ function canonical(value: unknown): string | undefined {
 
 /** Add the hermes-action server to a Claude Code `.mcp.json`, preserving every other key. */
 export function mergeMcpJson(existing: string | null): EditResult {
-  if (existing === null) return { content: render({ mcpServers: { [mcpServerName]: mcpServerEntry } }), action: "created" };
+  // Absent or empty/whitespace-only (e.g. `touch .mcp.json`) is treated as a fresh file, not a parse error.
+  if (existing === null || existing.trim() === "") {
+    return { content: render({ mcpServers: { [mcpServerName]: mcpServerEntry } }), action: "created" };
+  }
   let parsed: unknown;
   try {
     parsed = JSON.parse(existing);
@@ -45,13 +48,20 @@ export function mergeMcpJson(existing: string | null): EditResult {
     return { content: existing, action: "refused", reason: "existing .mcp.json has a non-object mcpServers; refusing to overwrite" };
   }
   const servers = isObject(parsed.mcpServers) ? parsed.mcpServers : {};
-  if (canonical(servers[mcpServerName]) === canonical(mcpServerEntry)) return { content: existing, action: "unchanged" };
+  const current = servers[mcpServerName];
+  if (canonical(current) === canonical(mcpServerEntry)) return { content: existing, action: "unchanged" };
+  // A different entry under our name is either a user customization (custom command/args) or a stale
+  // hand-edit. There is no --force path here, so refuse rather than silently discarding it; the user can
+  // remove the entry (or run `uninstall mcp --write`) and re-run.
+  if (current !== undefined) {
+    return { content: existing, action: "refused", reason: `existing .mcp.json already has a different "${mcpServerName}" entry; refusing to overwrite it` };
+  }
   return { content: render({ ...parsed, mcpServers: { ...servers, [mcpServerName]: mcpServerEntry } }), action: "updated" };
 }
 
 /** Remove the hermes-action server from a Claude Code `.mcp.json`, leaving other servers in place. */
 export function unmergeMcpJson(existing: string | null): EditResult {
-  if (existing === null) return { content: "", action: "unchanged" };
+  if (existing === null || existing.trim() === "") return { content: "", action: "unchanged" };
   let parsed: unknown;
   try {
     parsed = JSON.parse(existing);

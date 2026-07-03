@@ -16,6 +16,19 @@ describe("MCP server", () => {
     });
   }, 15_000);
 
+  it("forwards model and maxTurns overrides to the Hermes command", async () => {
+    const configPath = writeFakeHermesConfig("console.log(process.argv.slice(2).join(' '));");
+    await withMcpClient(configPath, async (client) => {
+      const result = await client.callTool({
+        name: "hermes_run",
+        arguments: { prompt: "do it", mode: "plan", model: "fast-model", maxTurns: 7 },
+      });
+      const text = toolText(result);
+      expect(text).toContain("--model fast-model");
+      expect(text).toContain("--max-turns 7");
+    });
+  }, 15_000);
+
   it("marks a failed Hermes run as an MCP error", async () => {
     const configPath = writeFakeHermesConfig(
       "console.log('partial progress');\nconsole.error('hermes boom');\nprocess.exit(2);",

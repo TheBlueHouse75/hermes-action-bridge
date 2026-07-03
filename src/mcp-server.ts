@@ -33,6 +33,10 @@ interface DelegateOptions {
   contextFiles?: string[] | undefined;
   yolo?: boolean | undefined;
   dryRun?: boolean | undefined;
+  provider?: string | undefined;
+  model?: string | undefined;
+  maxTurns?: number | undefined;
+  timeoutSeconds?: number | undefined;
 }
 
 async function delegate(config: BridgeConfig, options: DelegateOptions): Promise<BridgeToolResult> {
@@ -45,6 +49,10 @@ async function delegate(config: BridgeConfig, options: DelegateOptions): Promise
     yolo: options.yolo ?? false,
     dryRun,
     json: false,
+    provider: options.provider,
+    model: options.model,
+    maxTurns: options.maxTurns,
+    timeoutSeconds: options.timeoutSeconds,
   });
   const result = await runHermesCli(config, run, dryRun);
   const sections = [result.stdout, result.stderr].filter((section) => section.trim().length > 0);
@@ -69,6 +77,10 @@ export async function startMcpServer(configPath?: string): Promise<void> {
         contextFiles: z.array(z.string()).optional(),
         yolo: z.boolean().optional(),
         dryRun: z.boolean().optional(),
+        provider: z.string().optional(),
+        model: z.string().optional(),
+        maxTurns: z.number().int().positive().optional(),
+        timeoutSeconds: z.number().int().positive().optional(),
       },
     },
     (args) =>
@@ -80,6 +92,10 @@ export async function startMcpServer(configPath?: string): Promise<void> {
           contextFiles: args.contextFiles,
           yolo: args.yolo,
           dryRun: args.dryRun,
+          provider: args.provider,
+          model: args.model,
+          maxTurns: args.maxTurns,
+          timeoutSeconds: args.timeoutSeconds,
         }),
       ),
   );

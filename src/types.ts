@@ -18,7 +18,6 @@ export interface PresetConfig {
   toolsets: string[];
   provider?: string | undefined;
   model?: string | undefined;
-  profile?: string | undefined;
   maxTurns?: number | undefined;
   source?: string | undefined;
   /** Per-preset override of the risk categories that force request-approval. Falls back to the global policy when unset. */
@@ -27,7 +26,6 @@ export interface PresetConfig {
 
 export interface DefaultsConfig {
   mode: BridgeMode;
-  profile?: string | undefined;
   source: string;
   maxTurns: number;
   preset: string;
@@ -62,7 +60,6 @@ export interface RunOptions {
   yolo: boolean;
   dryRun: boolean;
   json: boolean;
-  profile?: string | undefined;
   provider?: string | undefined;
   model?: string | undefined;
   maxTurns?: number | undefined;
@@ -82,7 +79,6 @@ export interface EffectiveRun {
   preset: PresetConfig;
   prompt: string;
   source: string;
-  profile?: string | undefined;
   provider?: string | undefined;
   model?: string | undefined;
   maxTurns: number;

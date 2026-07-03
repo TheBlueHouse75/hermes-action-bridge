@@ -29,7 +29,6 @@ export function buildEffectiveRun(config: BridgeConfig, options: RunOptions): Ef
     preset,
     prompt: options.prompt,
     source: options.source || preset.source || config.defaults.source,
-    profile: options.profile || preset.profile || config.defaults.profile,
     provider: options.provider || preset.provider,
     model: options.model || preset.model,
     maxTurns: options.maxTurns || preset.maxTurns || config.defaults.maxTurns,

@@ -36,6 +36,20 @@ describe("mcp config", () => {
     expect(JSON.parse(result.content).keep).toBe(1);
   });
 
+  it("treats an empty or whitespace-only file as a fresh file", () => {
+    expect(mergeMcpJson("").action).toBe("created");
+    expect(mergeMcpJson("   \n").action).toBe("created");
+    expect(JSON.parse(mergeMcpJson("").content).mcpServers["hermes-action"]).toBeDefined();
+    expect(unmergeMcpJson("").action).toBe("unchanged");
+  });
+
+  it("refuses to overwrite a customized hermes-action entry (no data loss)", () => {
+    const existing = JSON.stringify({ mcpServers: { "hermes-action": { command: "/custom/hermes", args: ["mcp", "--flag"] } } });
+    const result = mergeMcpJson(existing);
+    expect(result.action).toBe("refused");
+    expect(JSON.parse(result.content).mcpServers["hermes-action"].command).toBe("/custom/hermes");
+  });
+
   it("is idempotent regardless of key order in the existing entry", () => {
     const existing = JSON.stringify({ mcpServers: { "hermes-action": { args: ["mcp"], command: "hermes-action" } } });
     expect(mergeMcpJson(existing).action).toBe("unchanged");

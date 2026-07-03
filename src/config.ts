@@ -41,7 +41,6 @@ const rawConfigSchema = z.object({
   defaults: z
     .object({
       mode: modeSchema.default("plan"),
-      profile: z.string().min(1).optional(),
       source: z.string().min(1).default("external-agent"),
       max_turns: z.number().int().positive().default(30),
       preset: z.string().min(1).default("default"),
@@ -56,7 +55,6 @@ const rawConfigSchema = z.object({
         toolsets: z.array(z.string()).default([]),
         provider: z.string().optional(),
         model: z.string().optional(),
-        profile: z.string().optional(),
         max_turns: z.number().int().positive().optional(),
         source: z.string().optional(),
         require_approval_for: z.array(riskSchema).optional(),
@@ -147,7 +145,6 @@ function toRaw(config: BridgeConfig): Record<string, unknown> {
     },
     defaults: {
       mode: config.defaults.mode,
-      profile: config.defaults.profile,
       source: config.defaults.source,
       max_turns: config.defaults.maxTurns,
       preset: config.defaults.preset,
@@ -161,7 +158,6 @@ function toRaw(config: BridgeConfig): Record<string, unknown> {
           toolsets: preset.toolsets,
           provider: preset.provider,
           model: preset.model,
-          profile: preset.profile,
           max_turns: preset.maxTurns,
           source: preset.source,
           require_approval_for: preset.requireApprovalFor,
@@ -182,7 +178,6 @@ function normalizeConfig(raw: RawConfig): BridgeConfig {
     },
     defaults: {
       mode: raw.defaults.mode,
-      profile: raw.defaults.profile,
       source: raw.defaults.source,
       maxTurns: raw.defaults.max_turns,
       preset: raw.defaults.preset,
@@ -196,7 +191,6 @@ function normalizeConfig(raw: RawConfig): BridgeConfig {
           toolsets: preset.toolsets,
           provider: preset.provider,
           model: preset.model,
-          profile: preset.profile,
           maxTurns: preset.max_turns,
           source: preset.source,
           requireApprovalFor: preset.require_approval_for,

@@ -22,7 +22,6 @@ export function buildHermesCliArgs(
   extraToolsets: string[] = [],
 ): string[] {
   const args = ["chat", "-Q", "--source", run.source, "--max-turns", String(run.maxTurns)];
-  if (run.profile) args.unshift("--profile", run.profile);
   if (run.provider) args.push("--provider", run.provider);
   if (run.model) args.push("--model", run.model);
   if (run.preset.skills.length) args.push("--skills", run.preset.skills.join(","));

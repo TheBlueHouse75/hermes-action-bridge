@@ -53,7 +53,6 @@ program
   .option("--preset <name>", "config preset")
   .option("--context <path...>", "context file(s) to include", [])
   .option("--config <path>", "config file path")
-  .option("--profile <name>", "Hermes profile")
   .option("--provider <name>", "Hermes provider")
   .option("--model <name>", "Hermes model")
   .option("--max-turns <number>", "Hermes max tool-calling iterations", parsePositiveInt)
@@ -72,7 +71,6 @@ program
       yolo: options.yolo,
       dryRun: options.dryRun,
       json: options.json,
-      profile: options.profile,
       provider: options.provider,
       model: options.model,
       maxTurns: options.maxTurns,
@@ -226,7 +224,6 @@ interface RunCommandOptions {
   preset?: string;
   context?: string[];
   config?: string;
-  profile?: string;
   provider?: string;
   model?: string;
   maxTurns?: number;
