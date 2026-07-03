@@ -132,6 +132,30 @@ YOLO only bypasses the bridge policy. It does not remove Hermes Agent's own safe
 
 Use it only when the caller and environment are trusted.
 
+## Trusted presets (direct execution)
+
+By default every `execute` is downgraded to `request-approval` — the right default when an agent might act unattended. When *you* are the one asking for an action and want it to run without that extra gate, define a **trusted preset**: one whose `require_approval_for` is an empty list. Put it in your **user** config so it is yours alone and available in every project:
+
+```yaml
+# ~/.config/hermes-action/config.yaml   (user scope, merged before any project config)
+presets:
+  act:
+    description: Direct execution of an action I explicitly asked for (trusted).
+    require_approval_for: []
+```
+
+Run actions through it — `execute` stays `execute`, with no downgrade and no `--yolo` needed:
+
+```bash
+hermes-action run --preset act --mode execute "post the release note to #general"
+```
+
+**Keep it safe:**
+
+- A trusted preset relaxes only the bridge's own gate. The real barrier stays your coding agent's approval prompt, so **do not allowlist `hermes-action run` (`execute`/`yolo`)** (see [Security model](#security-model)).
+- Keep it in your **user** config; it never ships in the public package, and the distributed `SKILL.md` stays cautious for everyone else.
+- Reserve trusted presets for actions a human explicitly asks for. Leave the conservative default for anything an agent could trigger on its own.
+
 ## Configuration
 
 `hermes-action` loads config in this order:
