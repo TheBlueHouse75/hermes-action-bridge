@@ -52,7 +52,7 @@ the initial publication; update that pin only as an intentional release change.
 | MCP Registry | GitHub OIDC authority for `io.github.TheBlueHouse75/*` | No registry token; `mcp-publisher login github-oidc` runs only when a version is absent. |
 | Claude Code marketplace | Maintainer access to the GitHub repository | The marketplace reads the checked-in manifest; no separate marketplace secret is configured. |
 | Agent Skills / skills.sh | Public GitHub repository | No repository credential or upload token is configured. |
-| Smithery | Account that owns the Smithery namespace | Authenticate interactively with `smithery auth login`; do not commit an API key or add it to CI. |
+| Smithery Skill / MCPB | Account that owns the Smithery namespace | Authenticate interactively with `smithery auth login`; do not commit an API key or add it to CI. |
 | Glama | GitHub account authorized to claim the listing | Complete GitHub OAuth in the Glama UI; do not use a personal token in the repository. |
 
 `main` may be branch-protected. In that case, promotion requires the normal
@@ -85,7 +85,7 @@ version without a leading `v` (for example, `0.5.1`).
    or fast-forward only when explicitly authorized. This activates the Git
    Claude marketplace and Agent Skills channels.
 7. Verify the Claude marketplace/plugin and Agent Skills surfaces from `main`.
-8. Perform the manual Smithery publication, then verify it in the catalog.
+8. Publish and verify the Smithery Skill and Smithery MCPB independently.
 9. Claim or update the Glama listing manually, verify its score/listing, and
    update any external directory PR only after the listing is live.
 10. Record the proof URLs and command output in the release notes or release
@@ -423,7 +423,43 @@ Related files: `skills/hermes-action-bridge/SKILL.md`,
 `src/install/templates.ts`, and `tests/examples.test.ts`. See the
 [Skills CLI documentation](https://www.skills.sh/docs/cli) for client usage.
 
-## 6. Smithery MCPB publication
+## 6. Smithery Skill publication
+
+### Prerequisites
+
+- The canonical `skills/hermes-action-bridge/SKILL.md` has passed `npm run check`.
+- The proven release commit is public on `main`.
+- Publication runs from a clean checkout or worktree whose `HEAD` is exactly
+  `v<version>^{commit}`.
+- The maintainer is authorized for the target Smithery namespace.
+
+### Commands
+
+Authenticate interactively, then publish the checked-in Skill directory:
+
+```bash
+test -z "$(git status --porcelain)"
+test "$(git rev-parse HEAD)" = "$(git rev-parse "v<version>^{commit}")"
+npm install -g @smithery/cli@latest
+smithery auth login
+smithery skill publish skills/hermes-action-bridge --namespace <namespace> --name hermes-action-bridge
+```
+
+The first two commands must produce no error: they prove the worktree is clean
+and `HEAD` matches the dereferenced release tag. This is independent from MCPB
+publication. The CLI login is interactive and no Smithery credential belongs
+in CI.
+
+### Proof, re-run, and rollback
+
+Record the public Skill page URL printed or opened by the CLI in the GitHub
+Release notes, together with the command output and source commit SHA. If the
+command fails before acceptance, fix the account or namespace state and rerun
+the exact command from the proven release commit. If the published Skill is
+faulty, publish the corrected release source; do not rewrite a published Git
+tag or describe the MCPB listing as proof of the Skill listing.
+
+## 7. Smithery MCPB publication
 
 ### Prerequisites
 
@@ -449,13 +485,20 @@ sources](SMITHERY.md) appendix for channel-specific background.
 ### Proof, re-run, and rollback
 
 Complete the Smithery flow and verify the resulting server page installs the
-local MCPB artifact. Record that page URL in the GitHub Release notes. If
-publication fails before acceptance, fix the local account/namespace state and
-retry the exact artifact. If an accepted artifact is faulty, publish a new
-corrective MCPB version; do not upload a different archive under the same
-version.
+local MCPB artifact. Record that page URL, the GitHub Release asset URL, and
+the command output in the GitHub Release notes. If publication fails before
+acceptance, fix the local account/namespace state and retry the exact artifact.
+If an accepted artifact is faulty, publish a new corrective MCPB version; do
+not upload a different archive under the same version.
 
-## 7. Glama listing and ownership claim
+If a Smithery MCPB CLI version requires an `inputSchema` in a tool entry, stop
+and record the CLI version, complete error, and inspected archive URL in the
+release notes. MCPB manifest version 0.3 forbids those tool properties because
+its `tools` schema has `additionalProperties: false`; never modify the
+generated MCPB artifact to satisfy that request. Keep the MCPB listing pending
+and report the incompatibility upstream.
+
+## 8. Glama listing and ownership claim
 
 ### Prerequisites
 
@@ -508,7 +551,9 @@ Before declaring the release complete, retain these proofs:
 - the recorded `v<version>^{commit}` SHA and the matching PR head SHA, when a
   protected-main PR was used;
 - Claude Code plugin and Agent Skills smoke-test result;
-- Smithery server page URL, if published for this version; and
+- Smithery Skill page URL and command output, if published for this version;
+- Smithery MCPB page URL, GitHub Release asset URL, and command output, if
+  published for this version; and
 - Glama claim/listing URL and score status, if applicable.
 
 If any proof is missing, label the channel as pending rather than treating the
