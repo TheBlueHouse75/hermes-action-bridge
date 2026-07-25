@@ -2,11 +2,11 @@
 
 import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
-const cli = join(process.cwd(), "src", "cli.ts");
+const cli = join(process.cwd(), "dist", "cli.js");
 
 /**
  * Write a fake `hermes` executable (Node script body, no shebang) plus a project
@@ -28,9 +28,13 @@ export function writeFakeHermesConfig(fakeHermesBody: string, configBody?: strin
 /** Spawn the bridge MCP server with the given config, run `fn` against a connected client, and always close. */
 export async function withMcpClient<T>(configPath: string, fn: (client: Client) => Promise<T>): Promise<T> {
   const transport = new StdioClientTransport({
-    command: "npx",
-    args: ["tsx", cli, "mcp", "--config", configPath],
+    command: process.execPath,
+    args: [cli, "mcp", "--config", configPath],
     cwd: process.cwd(),
+    env: {
+      ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined)),
+      HERMES_ACTION_AUDIT_FILE: join(dirname(configPath), "audit.jsonl"),
+    },
     stderr: "pipe",
   });
   const client = new Client({ name: "hermes-action-test", version: "0.1.0" });

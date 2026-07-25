@@ -2,7 +2,7 @@ import { chmodSync, existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildHermesCliArgs, runHermesCli } from "../src/adapters/hermes-cli.js";
+import { buildHermesCliArgs, runHermesCli, startHermesCli } from "../src/adapters/hermes-cli.js";
 import { defaultConfig } from "../src/config.js";
 import type { EffectiveRun } from "../src/types.js";
 
@@ -66,6 +66,13 @@ describe("Hermes CLI adapter", () => {
     expect(payload.delivery).toBe("argv");
   });
 
+  it("bounds dry-run output when requested", async () => {
+    const config = { ...defaultConfig, runtime: { ...defaultConfig.runtime, command: "hermes" } };
+    const result = await startHermesCli(config, run({ prompt: "x".repeat(1_000) }), true, { maxOutputBytes: 128 }).result;
+    expect(Buffer.byteLength(result.stdout, "utf8")).toBeLessThanOrEqual(128);
+    expect(result.outputTruncated).toBe(true);
+  });
+
   it("routes an oversized prompt through the temp-file path and injects the file toolset (dry run)", async () => {
     const big = { path: "big.md", content: "x".repeat(1_000_000) };
     const config = { ...defaultConfig, runtime: { ...defaultConfig.runtime, command: "hermes" } };
@@ -105,6 +112,24 @@ describe("Hermes CLI adapter", () => {
     expect(result.ok).toBe(false);
     expect(result.stderr).toMatch(/timed out/i);
   }, 15_000);
+
+  it("exposes an idempotent cancellation handle for asynchronous callers", async () => {
+    const fakeHermes = createFakeHermes("setTimeout(() => console.log('too late'), 5000);");
+    const config = { ...defaultConfig, runtime: { ...defaultConfig.runtime, command: fakeHermes } };
+    const execution = startHermesCli(config, run({ timeoutSeconds: 10 }), false);
+    expect(execution.cancel()).toBe(true);
+    expect(execution.cancel()).toBe(false);
+    const result = await execution.result;
+    expect(result.ok).toBe(false);
+  }, 15_000);
+
+  it("bounds asynchronous child output during capture", async () => {
+    const fakeHermes = createFakeHermes("process.stdout.write('abcdef');");
+    const config = { ...defaultConfig, runtime: { ...defaultConfig.runtime, command: fakeHermes } };
+    const result = await startHermesCli(config, run(), false, { maxOutputBytes: 4 }).result;
+    expect(result.stdout).toBe("abcd");
+    expect(result.outputTruncated).toBe(true);
+  });
 
   it("does not fire immediately when the timeout would overflow setTimeout", async () => {
     const fakeHermes = createFakeHermes("setTimeout(() => console.log('done'), 200);");

@@ -98,6 +98,8 @@ export interface AdapterResult {
   /** The full constructed envelope. For large payloads this is what was written to the temp file, not the short `-q` pointer in `command`. */
   prompt: string;
   dryRun: boolean;
+  /** True when a bounded capture omitted additional child or dry-run output. */
+  outputTruncated?: boolean;
   /** True when the child was killed because it exceeded the timeout. */
   timedOut?: boolean;
 }

@@ -6,6 +6,30 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-24
+
+### Added
+
+- Complete Codex and Claude Code installation: `install all` now installs the
+  managed skills and registers a verified global MCP server through each
+  agent's native CLI using the absolute bridge launcher.
+- `doctor` now detects missing/conflicting MCP registrations and performs a
+  token-free MCP initialize/list-tools handshake.
+- Configuration-backed `hermes_capabilities`, concurrency-limited
+  asynchronous jobs (`submit`, `status`, `result`, `cancel`), and one-shot
+  two-phase actions (`prepare`, `approve`, `reject`).
+- Privacy-preserving owner-only JSONL audit metadata for job and approval
+  transitions.
+- Opt-in Streamable HTTP transport with loopback defaults and an authenticated,
+  Tailscale-only direct-listen mode.
+
+### Changed
+
+- Native skills now prefer discoverable `hermes_*` MCP tools and clearly
+  separate Hermes-owned integrations from ordinary local coding work.
+- The Codex plugin manifest now uses the supported `mcpServers` shape, ships in
+  the npm tarball, and shares the package version.
+
 ### Documentation
 
 - Added a "Trusted presets (direct execution)" README section: how to define a `require_approval_for: []`

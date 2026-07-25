@@ -1,55 +1,61 @@
 ---
 name: hermes-action-bridge
-description: Delegate external actions, Hermes skills, browser automation, messaging, cron jobs, and integrations to Hermes Agent through hermes-action. Use when a task needs capabilities outside the local coding session.
+description: Use Hermes Agent for Hermes-owned skills, memory, connected services, messaging, browser workflows, schedules, and external automation. Prefer the installed hermes_* MCP tools; use the CLI only as a fallback.
 ---
 
 # Hermes Action Bridge
 
-Use this skill when a task needs capabilities outside the local coding session:
-Hermes skills or memory, messaging platforms, browser automation, scheduled or
-cron automation, external research, or any platform integration already
-configured in Hermes Agent.
+Use this skill when a task needs state or capabilities owned by Hermes Agent:
+Hermes skills or memory, connected services, messaging platforms, browser
+workflows, scheduled automation, or another integration configured in Hermes.
 
-Do not reimplement those integrations here. Delegate them to Hermes through the
-`hermes-action` CLI.
+Do not reimplement a Hermes-owned integration in the coding agent. Prefer the
+installed `hermes_*` MCP tools so the host can discover, approve, and inspect
+the delegation.
 
 ## When to use
 
-- The task requires a Hermes skill, tool, profile, or connected service.
-- The task needs a real-world action that is not local code editing.
-- The task needs research, messaging, browser, or scheduled automation Hermes owns.
+- The task names Hermes, a Hermes skill, memory, preset, or connected service.
+- The task needs messaging, scheduling, browser work, or persistent external automation Hermes owns.
+- The task must continue as a cancellable background job outside the local coding step.
 
-## Safe default
+Do not use Hermes for ordinary local code edits or repository inspection that
+the current agent can perform directly.
 
-Ask Hermes for a plan first; it has no side effects:
+## Discover first
+
+Call `hermes_capabilities` before assuming an integration is configured. Use
+`hermes_status` to check the runtime without spending provider tokens.
+
+## Safe delegation
+
+- Use `hermes_plan` for plan-mode analysis, but treat it as open-world and review its output.
+- Use `hermes_submit`, then `hermes_job_status` / `hermes_result`, for a
+  long cancellable plan or draft.
+- Use `hermes_cancel` when a queued or running job is no longer wanted.
+
+## External side effects
+
+For public posts, outbound messages, deletes, payments, credential changes, or
+git pushes:
+
+1. Call `hermes_prepare` to produce a local no-tool summary and approval ID.
+2. Show `preview.action` and the rest of the preview to the human.
+3. Call `hermes_approve` only after the human explicitly approves that
+   prepared action; otherwise call `hermes_reject`.
+
+Never treat the model's own decision as human approval.
+
+## CLI fallback
+
+If MCP tools are unavailable, use the local CLI:
 
 ```bash
 hermes-action run --mode plan "<describe what Hermes should do>"
 ```
 
-## With context
-
-Write a concise handoff to a file and pass it explicitly:
-
-```bash
-hermes-action run --preset coding --context ./handoff.md "<request>"
-```
-
-## External side effects
-
-For public posts, outbound email or messages, deletes, payments, credential
-changes, or git pushes, require human approval:
-
-```bash
-hermes-action run --mode request-approval "<request requiring side effects>"
-```
-
-Never use `--yolo` unless the human explicitly asked for trusted local
-execution. It bypasses only the bridge policy, not Hermes' own safety rules.
-
 ## Verify setup
 
 ```bash
-hermes-action status
-hermes-action run --dry-run --json "Return BRIDGE_OK only."
+hermes-action doctor
 ```

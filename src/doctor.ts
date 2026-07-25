@@ -1,9 +1,13 @@
 import { spawnSync } from "node:child_process";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { defaultConfig } from "./config.js";
 import { checkHermesStatus, versionProbeTimeoutMs } from "./status.js";
 import { buildEffectiveRun, defaultTimeoutSeconds } from "./run.js";
 import { runHermesCli } from "./adapters/hermes-cli.js";
 import { skillStates } from "./install/install-service.js";
+import { inspectMcp, type McpCommandRunner, type McpLauncher, type McpRegistration } from "./install/mcp-service.js";
+import { createBridgeMcpServer } from "./mcp-server.js";
 import type { BridgeConfig } from "./types.js";
 import type { ManagedState, PathContext, SkillAgent } from "./install/types.js";
 
@@ -23,14 +27,24 @@ export interface DoctorReport {
 const minNodeMajor = 20;
 const agentCommand: Record<SkillAgent, string> = { "claude-code": "claude", codex: "codex" };
 
+export interface DoctorOptions {
+  launcher?: McpLauncher | undefined;
+  commandRunner?: McpCommandRunner | undefined;
+}
+
 /** Synchronous environment checks. The optional `--probe` check is added separately by the caller. */
-export function coreChecks(config: BridgeConfig | null, ctx: PathContext, configError?: string): DoctorCheck[] {
+export function coreChecks(config: BridgeConfig | null, ctx: PathContext, configError?: string, options: DoctorOptions = {}): DoctorCheck[] {
   const checks: DoctorCheck[] = [nodeCheck(), configCheck(config, configError), hermesCheck(config ?? defaultConfig), limitsCheck(config ?? defaultConfig)];
+  const skills = new Map(skillStates(ctx, "global").map(({ agent, state }) => [agent, state]));
   for (const agent of Object.keys(agentCommand) as SkillAgent[]) {
-    checks.push(agentAvailabilityCheck(agent));
-  }
-  for (const { agent, state } of skillStates(ctx, "global")) {
-    checks.push(skillCheck(agent, state));
+    const availability = agentAvailabilityCheck(agent, options.commandRunner);
+    const skillState = skills.get(agent) ?? "absent";
+    const registration = options.launcher
+      ? inspectMcp(agent, options.launcher, options.commandRunner)
+      : undefined;
+    checks.push(availability.check);
+    checks.push(skillCheck(agent, skillState, availability.available, registration));
+    if (registration) checks.push(mcpCheck(registration, skillState));
   }
   return checks;
 }
@@ -52,6 +66,29 @@ export async function probeCheck(config: BridgeConfig): Promise<DoctorCheck> {
   const result = await runHermesCli(config, run, false);
   const ok = result.ok && `${result.stdout}${result.stderr}`.includes("BRIDGE_OK");
   return { id: "probe", status: ok ? "pass" : "warn", detail: ok ? "Hermes responded" : `exit ${result.exitCode}` };
+}
+
+/** Token-free MCP initialize/list-tools handshake against the current server implementation. */
+export async function mcpHandshakeCheck(config: BridgeConfig): Promise<DoctorCheck> {
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const server = createBridgeMcpServer(config);
+  const client = new Client({ name: "hermes-action-doctor", version: "1.0.0" });
+  try {
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+    const tools = await client.listTools();
+    const names = new Set(tools.tools.map((tool) => tool.name));
+    const required = ["hermes_run", "hermes_plan", "hermes_capabilities", "hermes_status"];
+    const missing = required.filter((name) => !names.has(name));
+    return missing.length === 0
+      ? { id: "mcp:handshake", status: "pass", detail: `${tools.tools.length} tools available` }
+      : { id: "mcp:handshake", status: "fail", detail: `missing tools: ${missing.join(", ")}` };
+  } catch (error) {
+    return { id: "mcp:handshake", status: "fail", detail: error instanceof Error ? error.message : String(error) };
+  } finally {
+    await client.close().catch(() => undefined);
+    await server.close().catch(() => undefined);
+  }
 }
 
 export function formatDoctor(report: DoctorReport): string {
@@ -85,12 +122,22 @@ function limitsCheck(config: BridgeConfig): DoctorCheck {
   return { id: "limits", status: "pass", detail: `context ≤ ${config.runtime.maxContextBytes} bytes, timeout ${timeout}` };
 }
 
-function agentAvailabilityCheck(agent: SkillAgent): DoctorCheck {
+function agentAvailabilityCheck(agent: SkillAgent, runner?: McpCommandRunner): { check: DoctorCheck; available: boolean } {
   const command = agentCommand[agent];
-  const result = spawnSync(command, ["--version"], { encoding: "utf8", timeout: versionProbeTimeoutMs });
-  if (result.error) return { id: agent, status: "warn", detail: `${command} not found on PATH` };
-  if (result.status !== 0) return { id: agent, status: "warn", detail: `${command} --version exited with ${result.status ?? `signal ${result.signal}`}` };
-  return { id: agent, status: "pass", detail: result.stdout.trim() || result.stderr.trim() };
+  const result = runner
+    ? runner(command, ["--version"])
+    : (() => {
+        const process = spawnSync(command, ["--version"], { encoding: "utf8", timeout: versionProbeTimeoutMs });
+        const error = process.error
+          ? { code: (process.error as NodeJS.ErrnoException).code, message: process.error.message }
+          : undefined;
+        return { status: process.status, stdout: process.stdout ?? "", stderr: process.stderr ?? "", ...(error ? { error } : {}) };
+      })();
+  if (result.error) return { check: { id: agent, status: "warn", detail: `${command} not found on PATH` }, available: false };
+  if (result.status !== 0) {
+    return { check: { id: agent, status: "warn", detail: `${command} --version exited with ${result.status ?? "unknown status"}` }, available: false };
+  }
+  return { check: { id: agent, status: "pass", detail: result.stdout.trim() || result.stderr.trim() }, available: true };
 }
 
 const skillStateDetail: Record<ManagedState, string> = {
@@ -101,6 +148,27 @@ const skillStateDetail: Record<ManagedState, string> = {
   foreign: "a non-managed file is present",
 };
 
-function skillCheck(agent: SkillAgent, state: ManagedState): DoctorCheck {
-  return { id: `skill:${agent}`, status: state === "current" ? "pass" : "warn", detail: skillStateDetail[state] };
+function skillCheck(agent: SkillAgent, state: ManagedState, agentAvailable: boolean, registration?: McpRegistration): DoctorCheck {
+  const unusedTarget = state === "absent" && !agentAvailable && (!registration || registration.state === "unavailable");
+  return {
+    id: `skill:${agent}`,
+    status: state === "current" ? "pass" : unusedTarget ? "warn" : "fail",
+    detail: skillStateDetail[state],
+  };
+}
+
+function mcpCheck(registration: McpRegistration, skillState: ManagedState): DoctorCheck {
+  const unusedTarget = registration.state === "unavailable" && skillState === "absent";
+  const detail: Record<McpRegistration["state"], string> = {
+    absent: "not registered (run: hermes-action install all)",
+    current: "registered with the current bridge launcher",
+    conflict: registration.detail ?? "a different hermes-action registration is present",
+    unavailable: registration.detail ?? "agent CLI is unavailable",
+    error: registration.detail ?? "registration could not be inspected",
+  };
+  return {
+    id: `mcp:${registration.agent}`,
+    status: registration.state === "current" ? "pass" : unusedTarget ? "warn" : "fail",
+    detail: detail[registration.state],
+  };
 }

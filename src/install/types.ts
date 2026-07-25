@@ -1,4 +1,5 @@
 export type SkillAgent = "claude-code" | "codex";
+export type McpTarget = SkillAgent | "all";
 export type InstallTarget = SkillAgent | "all" | "mcp";
 export type InstallScope = "global" | "project";
 

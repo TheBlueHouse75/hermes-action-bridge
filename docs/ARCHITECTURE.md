@@ -25,7 +25,12 @@ Hermes skills, tools, browser automation, MCPs, cron jobs, messaging, APIs
 - `src/prompt.ts`: prompt envelope sent to Hermes.
 - `src/context.ts`: context file loading with a per-file cap and an aggregate budget.
 - `src/adapters/hermes-cli.ts`: Hermes CLI adapter (argv or temp-file prompt delivery, child-process timeout).
-- `src/mcp-server.ts`: minimal MCP server.
+- `src/mcp-server.ts`: MCP server factory, delegation tools, jobs, and approval orchestration.
+- `src/http-server.ts`: authenticated, opt-in Streamable HTTP transport.
+- `src/capabilities.ts`: configuration-backed capability inventory.
+- `src/jobs.ts`: bounded process-local asynchronous jobs.
+- `src/approvals.ts`: short-lived, one-shot approval records.
+- `src/audit-log.ts`: privacy-preserving owner-only JSONL audit metadata.
 - `src/status.ts`: runtime availability check.
 - `src/version.ts`: single source of truth for the package version.
 - `src/doctor.ts`: environment checks for `hermes-action doctor`.
@@ -40,9 +45,14 @@ The `install` / `uninstall` commands install an open-standard `SKILL.md` for Cla
 - `src/install/marker-block.ts`: fail-safe marker block for the optional `CLAUDE.md` / `AGENTS.md` hint.
 - `src/install/file-edit.ts`: shared read-edit-write helper used by the hint and the `.mcp.json` writer.
 - `src/install/mcp-config.ts`: MCP snippets and the Claude Code `.mcp.json` merge/unmerge writer.
+- `src/install/mcp-service.ts`: native Codex/Claude MCP registration, inspection, conflict handling, and removal.
 - `src/install/install-service.ts`: per-agent install/uninstall with failure isolation.
 
-Defaults are conservative: never modify `CLAUDE.md` / `AGENTS.md` without `--project-hint`, never overwrite a file the installer did not generate, and stay idempotent.
+The global default is a complete installation: managed skill plus MCP
+registration through each agent's native CLI, using the bridge's absolute
+launcher path. Defaults remain conservative: never modify `CLAUDE.md` /
+`AGENTS.md` without `--project-hint`, never overwrite foreign skills or
+customized MCP entries, and stay idempotent.
 
 ## Config precedence
 
@@ -68,14 +78,18 @@ Project config:
 
 The bridge does not decide how Hermes completes the task. It only labels the requested behavior:
 
-- `plan`: no side effects.
+- `plan`: prompt-level plan-only policy; callers must still treat configured Hermes tools as open-world.
 - `draft`: produce an artifact, no external side effects.
 - `execute`: execute allowed actions.
 - `request-approval`: prepare the action and ask for approval.
 
 ## Policy
 
-The security barrier is the **host agent's approval prompt**, not the bridge. The bridge assumes a supervised caller (Claude Code / Codex) that asks the human to approve each command or tool call before it runs — a deterministic, language-agnostic gate. The bridge must never bypass it (it never injects `--yolo` or a oneshot flag).
+Direct CLI and `hermes_run` calls rely on the **host agent's approval prompt**.
+The structured MCP path adds a second deterministic barrier:
+`hermes_prepare` creates a local no-tool summary, stores an immutable short-lived request, and
+`hermes_approve` consumes it exactly once. The bridge never treats its own model
+output as human approval.
 
 The bridge's own guard is a secondary, deterministic net: in `mode=execute` it changes the effective mode to `request-approval` unless the preset/policy is explicitly trusted (empty `require_approval_for`) or YOLO is enabled. This is independent of the prompt's language or wording.
 
@@ -104,13 +118,44 @@ Every child process is bounded by a timeout (per-mode defaults, overridable via 
 
 ## MCP design
 
-The MCP server exposes a small delegation surface instead of mirroring every Hermes tool.
+The MCP server exposes orchestration primitives instead of mirroring every
+Hermes tool.
 
 Tools:
 
 - `hermes_run`
 - `hermes_plan`
+- `hermes_capabilities`
 - `hermes_presets`
 - `hermes_status`
+- `hermes_submit`
+- `hermes_job_status`
+- `hermes_result`
+- `hermes_cancel`
+- `hermes_prepare`
+- `hermes_approve`
+- `hermes_reject`
 
-This keeps schema drift low and lets Hermes remain the action runtime.
+The server advertises routing instructions that distinguish Hermes-owned
+connected services and automation from ordinary local coding work. Capability
+discovery reports declarative presets and runtime status only; it does not
+claim that a Hermes integration is live without a stable Hermes introspection
+API.
+
+Jobs are memory-only, concurrency-limited, cancellable, output-bounded, and
+expire after 24 hours. Approval records expire after 15 minutes and are
+one-shot. Audit JSONL stores only identifiers, modes, risks, prompt hashes, and
+terminal metadata with `0600` permissions.
+
+## HTTP transport
+
+`hermes-action serve` exposes `/mcp` using Streamable HTTP. It binds loopback by
+default. Direct non-loopback binding requires an explicit address in
+`100.64.0.0/10`, `--allow-tailnet`, and a bearer token read from an environment
+variable. The server validates Host, authenticates in constant time, restricts
+direct peers to Tailscale CGNAT, limits request size and active sessions, and
+never exposes an unauthenticated diagnostics endpoint.
+
+Tailscale Serve in front of a loopback listener remains the preferred remote
+deployment because TLS and tailnet identity stay outside the bridge. Requests
+forwarded with a `*.ts.net` Host still require the bridge bearer token.

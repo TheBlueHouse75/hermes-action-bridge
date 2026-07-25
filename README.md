@@ -30,7 +30,9 @@ If an agent needs to do something outside its local coding session — research,
 - Automatic large-context delivery: an oversized prompt is handed to Hermes through a secure temp file instead of overflowing the command line.
 - Per-run timeouts (configurable, with per-mode defaults) that always reap the Hermes child process.
 - Dry-run mode for debugging the exact Hermes command, prompt, and computed prompt size.
-- Minimal MCP server exposing delegation tools: `hermes_run`, `hermes_plan`, `hermes_presets`, and `hermes_status`.
+- Complete Codex and Claude Code installer: managed skill plus verified global MCP registration.
+- MCP capability discovery, cancellable asynchronous jobs, and one-shot two-phase approvals with a privacy-preserving local audit log.
+- Local stdio transport plus an opt-in, authenticated Streamable HTTP transport for Tailscale-restricted hosts.
 - No project-specific assumptions. All behavior is configured through YAML and CLI flags.
 
 ## Requirements
@@ -52,12 +54,19 @@ Install from npm:
 npm install -g hermes-action-bridge
 ```
 
-Then check it works:
+Install the skill and MCP registration for Codex and Claude Code, then verify
+the complete setup:
 
 ```bash
 hermes-action --version
+hermes-action install all
 hermes-action doctor
 ```
+
+Global installation is all-or-nothing for the requested agents. If Codex or
+Claude Code is unavailable, conflicting, or cannot verify its user-scoped
+stdio MCP entry, the command exits non-zero without installing the requested
+skills. Use `--project` for an explicit skill-only setup.
 
 <details>
 <summary>From source (for development)</summary>
@@ -103,10 +112,12 @@ hermes-action run --dry-run --json "Summarize this project."
 
 ## Execution modes
 
-- `plan`: Hermes returns a plan only. No side effects.
+- `plan`: Hermes is instructed to return a plan only. Treat it as open-world because configured tools remain available.
 - `draft`: Hermes produces an artifact only. No external side effects.
 - `execute`: Hermes may execute allowed actions, while still following Hermes' own safety rules.
-- `request-approval`: Hermes prepares the action and asks the human for approval before irreversible external effects.
+- `request-approval`: Hermes prepares an action without executing it. MCP
+  callers should use `hermes_prepare` and then call `hermes_approve` only after
+  explicit human approval.
 
 The guard is deterministic and language-agnostic: in `execute` mode the bridge switches to `request-approval` by default — regardless of the prompt's wording or language — unless the preset is explicitly trusted (empty `require_approval_for`) or `--yolo` is set. It does not try to infer risk from keywords. See [Security model](#security-model) for why the real barrier is your coding agent's own approval prompt.
 
@@ -246,6 +257,7 @@ hermes-action run [options] "request"
 hermes-action presets [--json]
 hermes-action status [--json]
 hermes-action mcp
+hermes-action serve [--listen 127.0.0.1] [--port 8765]
 hermes-action install <claude-code|codex|all|mcp> [options]
 hermes-action uninstall <claude-code|codex|all|mcp> [options]
 hermes-action doctor [--json] [--probe]
@@ -270,17 +282,24 @@ Common `run` options:
 
 ## Native agent skills
 
-Instead of pasting instructions by hand, install a native skill so Claude Code and Codex know when to delegate to Hermes. The skill is the same open-standard `SKILL.md` for both agents; the CLI stays the deterministic execution layer.
+Instead of pasting instructions and MCP snippets by hand, run the complete
+installer. It installs the open-standard skill and registers the local stdio
+MCP server through each agent's own CLI:
 
 ```bash
-hermes-action doctor                 # check Node, Hermes, agents, and installed skills
-hermes-action install all            # ~/.claude/skills and ~/.codex/skills
+hermes-action install all            # skills + global MCP for both agents
+hermes-action doctor                 # verifies skills, registrations, and MCP handshake
 hermes-action install claude-code --print     # preview, write nothing
 hermes-action install codex --project-hint     # also add a marker block to AGENTS.md
 hermes-action uninstall all
 ```
 
-Install behavior is safe by default: it never modifies `CLAUDE.md` / `AGENTS.md` unless you pass `--project-hint`, refuses to overwrite a file it did not generate, and is idempotent. Use `--project` for a project-local skill and `--dry-run` to preview operations.
+Install behavior is safe by default: it uses a stable absolute bridge path,
+does not depend on an interactive `PATH`, never modifies `CLAUDE.md` /
+`AGENTS.md` unless you pass `--project-hint`, and refuses to overwrite either a
+foreign skill or a customized MCP entry. Re-running it is idempotent. Use
+`--project` for a project-local skill only and `--dry-run` to preview
+operations.
 
 The generated skill is shown in [`examples/claude-code/SKILL.md`](examples/claude-code/SKILL.md). Project-hint usage is documented in [`examples/claude-code/CLAUDE.md`](examples/claude-code/CLAUDE.md) and [`examples/codex/AGENTS.md`](examples/codex/AGENTS.md).
 
@@ -295,17 +314,20 @@ codex plugin add hermes-action@hermes-action-bridge
 
 This registers the `hermes-action` MCP server and the Hermes delegation skill in Codex. Hermes Agent must be installed locally — the plugin runs `npx -y hermes-action-bridge mcp`.
 
-> **Faster MCP startup:** `npx` re-resolves the package on every server start (~200 ms overhead, more on a cold cache). If you install the package globally (`npm install -g hermes-action-bridge`), point the MCP config at the binary — `command: "hermes-action"`, `args: ["mcp"]` — which is what `hermes-action install mcp` generates.
+> **Faster MCP startup:** `npx` re-resolves the package on every server start.
+> The native installer registers the absolute global launcher instead.
 
 ## MCP configuration
 
-Print the config snippet for your client (Claude Code / Cursor / VS Code use JSON; Codex uses TOML):
+Register the global MCP server for Codex and Claude Code without reinstalling
+their skills:
 
 ```bash
 hermes-action install mcp
 ```
 
-For Claude Code, write or merge the project `.mcp.json` directly (preserving other servers):
+For other JSON MCP clients, or a Claude Code project-scoped configuration,
+write or merge `.mcp.json` directly while preserving other servers:
 
 ```bash
 hermes-action install mcp --write
@@ -349,10 +371,54 @@ Exposed tools:
 
 - `hermes_run`: delegate a request to Hermes. Optional overrides: `mode`, `preset`, `contextFiles`, `yolo`, `dryRun`, and — to trade cost for speed on simple tasks — `model`, `provider`, `maxTurns`, `timeoutSeconds`.
 - `hermes_plan`: shortcut for `hermes_run` with `mode=plan`.
+- `hermes_capabilities`: report configured presets, skills, toolsets, runtime, and policy without inventing live integrations.
 - `hermes_presets`: list configured presets.
 - `hermes_status`: check the configured Hermes runtime command.
+- `hermes_submit`, `hermes_job_status`, `hermes_result`, `hermes_cancel`:
+  manage bounded, process-local asynchronous jobs.
+- `hermes_prepare`, `hermes_approve`, `hermes_reject`: create and consume a
+  short-lived one-shot approval before execution.
 
-The MCP surface is intentionally small. The bridge delegates to Hermes instead of exposing every Hermes tool one by one.
+The MCP surface delegates to Hermes instead of mirroring every Hermes tool.
+Jobs and approvals are intentionally process-local: restarting the MCP server
+clears them. Audit events are written as owner-only JSONL metadata under
+`$XDG_STATE_HOME/hermes-action/audit.jsonl` (or
+`~/.local/state/hermes-action/audit.jsonl`) without prompt, context, token, or
+full result content.
+
+## Remote MCP over Tailscale
+
+The HTTP transport is opt-in and loopback-only by default:
+
+```bash
+hermes-action serve --listen 127.0.0.1 --port 8765
+```
+
+Prefer placing Tailscale Serve in front of that loopback endpoint. Forwarded
+`*.ts.net` requests still require a bearer token, so start the loopback server
+with `--token-env`:
+
+```bash
+export HERMES_ACTION_HTTP_TOKEN="<at-least-32-random-bytes>"
+hermes-action serve \
+  --listen 127.0.0.1 \
+  --port 8765 \
+  --token-env HERMES_ACTION_HTTP_TOKEN
+```
+
+For direct tailnet listening, the bridge accepts only an explicit Tailscale
+IPv4 address and requires the same bearer-token setup:
+
+```bash
+hermes-action serve \
+  --listen 100.64.0.10 \
+  --port 8765 \
+  --allow-tailnet \
+  --token-env HERMES_ACTION_HTTP_TOKEN
+```
+
+The token is never accepted as a CLI value or stored in bridge configuration.
+Public/wildcard and non-Tailscale addresses are refused.
 
 ## Development
 
@@ -375,11 +441,18 @@ Functional tests use a fake Hermes binary to verify command construction, prompt
 
 ## Security model
 
-The bridge assumes a **supervised host agent**: Claude Code / Codex ask you to approve each `hermes-action` command (or `hermes_run` tool call) before it runs. That host approval — not the keyword detection — is the real, deterministic, language-agnostic barrier, and it is what makes a French, German, or paraphrased request as safe as an English one.
+Direct CLI and `hermes_run` usage assumes a **supervised host agent**: Claude
+Code / Codex ask you to approve the command or tool call. For MCP side effects,
+prefer the bridge's additional, testable two-phase flow:
+`hermes_prepare` returns a local no-tool summary and opaque approval ID, and
+`hermes_approve` consumes the unchanged request exactly once after the human
+approves it.
 
 The bridge's own guard is a secondary net: `execute` is downgraded to `request-approval` by default unless a preset is trusted (empty `require_approval_for`) or `--yolo` is set. The bridge never injects `--yolo` or a bypass flag on its own.
 
-- **Do not allowlist / auto-approve `hermes-action run` (especially `--mode execute` or `--yolo`)** in your coding agent. A command-pattern allowlist cannot tell `run --mode plan` (safe) from `run --mode execute` (side effects); at most, `status`, `presets`, and `--dry-run` are safe to auto-approve.
+- **Do not allowlist / auto-approve `hermes-action run`, `hermes_run`, or
+  `hermes_approve`**. A command-pattern allowlist cannot distinguish a safe
+  plan from an execution with side effects.
 - Do not put secrets in `.hermes-action.yaml`. Keep provider credentials in Hermes Agent, your OS keychain, or the platform's secure store.
 - Treat `--yolo` as a trusted-local escape hatch, not a default.
 

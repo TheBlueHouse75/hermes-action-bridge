@@ -1,6 +1,6 @@
 {
   "name": "hermes-action-bridge",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Configurable bridge for external agents to delegate actions to Hermes Agent via CLI or MCP.",
   "mcpName": "io.github.TheBlueHouse75/hermes-action-bridge",
   "repository": {
@@ -21,15 +21,17 @@
     "CHANGELOG.md",
     "CONTRIBUTING.md",
     "docs/*.md",
-    "examples"
+    "examples",
+    "plugins"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "postbuild": "node -e \"require('node:fs').chmodSync('dist/cli.js', 0o755)\"",
     "dev": "tsx src/cli.ts",
+    "pretest": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run build && npm run test",
+    "check": "npm run test",
     "prepublishOnly": "npm run check"
   },
   "keywords": [

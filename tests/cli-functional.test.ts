@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
-const cli = join(process.cwd(), "src", "cli.ts");
+const cli = join(process.cwd(), "dist", "cli.js");
 
 describe("CLI functional bridge", () => {
   it("runs a fake Hermes command with policy-applied prompt", () => {
@@ -37,7 +37,7 @@ describe("CLI functional bridge", () => {
       ].join("\n"),
     );
 
-    const output = execFileSync("npx", ["tsx", cli, "run", "Publish this on X"], { cwd: dir, encoding: "utf8" });
+    const output = execFileSync(process.execPath, [cli, "run", "Publish this on X"], { cwd: dir, encoding: "utf8" });
     const payload = JSON.parse(output) as { argv: string[]; prompt: string };
     expect(payload.argv).toContain("--skills");
     expect(payload.argv).not.toContain("--yolo");
@@ -66,7 +66,7 @@ describe("CLI functional bridge", () => {
       ].join("\n"),
     );
 
-    const output = execFileSync("npx", ["tsx", cli, "run", "--yolo", "Publish this on X"], { cwd: dir, encoding: "utf8" });
+    const output = execFileSync(process.execPath, [cli, "run", "--yolo", "Publish this on X"], { cwd: dir, encoding: "utf8" });
     const payload = JSON.parse(output) as { argv: string[]; prompt: string };
     expect(payload.argv).toContain("--yolo");
     expect(payload.prompt).toContain("Mode: execute");

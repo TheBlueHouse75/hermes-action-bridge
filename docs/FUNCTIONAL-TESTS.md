@@ -27,13 +27,22 @@ The fake Hermes tests verify:
 
 The installer tests verify (with injected home/cwd and temp `HOME`, no real agents required):
 
-- `install` / `uninstall` are idempotent and never touch `CLAUDE.md` / `AGENTS.md` by default.
+- `install` / `uninstall` manage both skills and native MCP registrations,
+  remain idempotent, preserve customized registrations, and never touch
+  `CLAUDE.md` / `AGENTS.md` by default.
 - `--dry-run` and `--print` write nothing; `--force` replaces a managed skill; a non-managed file is refused.
 - `--project-hint` adds and removes a marker block without losing existing content.
 - `--project` installs a project-local skill without creating the global one.
 - `install mcp --write` merges and `uninstall mcp --write` unmerges the project `.mcp.json`, preserving other servers.
-- `doctor` assembles its checks and JSON report, and `--probe` accepts the sentinel on stdout or stderr.
+- `doctor` verifies skills, registrations, and an in-memory MCP handshake;
+  `--probe` accepts the sentinel on stdout or stderr.
 - The shipped `examples/*/SKILL.md` match the installer template exactly (no drift).
+- asynchronous jobs enforce concurrency, cancellation, TTL, and bounded UTF-8
+  output;
+- approvals are immutable, short-lived, and one-shot, while audit records omit
+  prompt and output content;
+- the Streamable HTTP server completes an MCP handshake on loopback and rejects
+  public binding, weak/missing authentication, and non-Tailscale addresses.
 
 ## Live Hermes smoke test
 
@@ -55,27 +64,30 @@ node dist/cli.js run \
 
 ## Claude Code smoke test
 
-After `npm link`, ask Claude Code to run:
+After `npm link`, install over any existing configuration:
 
 ```bash
-hermes-action run --dry-run --json "Return BRIDGE_OK only."
+hermes-action install all --yes
+claude mcp get hermes-action
+hermes-action doctor
 ```
 
 Expected result:
 
-- The command exits `0`.
-- The JSON output contains a `command` array starting with `hermes chat -Q`.
-- The prompt contains `Mode: plan`.
+- The managed Claude skill is current.
+- The MCP entry points to the absolute linked bridge launcher with argument `mcp`.
+- `doctor` reports `skill:claude-code`, `mcp:claude-code`, and
+  `mcp:handshake` as passing.
 
 ## Codex smoke test
 
-After `npm link`, ask Codex to run:
+Verify the same installation from Codex:
 
 ```bash
-hermes-action run --dry-run --json "Return BRIDGE_OK only."
+codex mcp get hermes-action --json
 ```
 
-Expected result is the same as Claude Code.
+The command and arguments must match the current absolute bridge launcher.
 
 ## MCP smoke test
 
@@ -92,6 +104,9 @@ Configure an MCP client with:
 }
 ```
 
-Call `hermes_status` first. It should report whether the configured Hermes command is available.
+Call `hermes_status` and `hermes_capabilities` first. They should report the
+runtime and declarative presets without spending provider tokens.
 
-Then call `hermes_run` with `dryRun: true` before making real Hermes calls.
+Then call `hermes_plan` before making real side-effecting calls. Validate a
+two-phase action with `hermes_prepare`; call `hermes_reject` unless a human
+explicitly approves the exact request returned in `preview.action`.
