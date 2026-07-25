@@ -3,19 +3,23 @@ name: Release
 on:
   release:
     types: [published]
-  workflow_dispatch:
 
 permissions:
-  contents: read
-  id-token: write # required for npm Trusted Publishing (OIDC) and provenance
+  contents: write  # upload the versioned MCPB asset to the published GitHub release
+  id-token: write  # required for npm Trusted Publishing (OIDC) and provenance
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Verify release tag matches package version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: node -e 'const { version } = require("./package.json"); const expected = "v" + version; if (process.env.RELEASE_TAG !== expected) throw new Error(`Release tag ${process.env.RELEASE_TAG} must equal ${expected}`)'
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -25,30 +29,116 @@ jobs:
           cache: npm
 
       - name: Install dependencies
+        timeout-minutes: 3
         run: npm ci
 
       - name: Build and test
+        timeout-minutes: 5
         run: npm run check
 
-      - name: Upgrade npm (Trusted Publishing requires npm >= 11.5.1)
-        run: npm install -g npm@latest
+      - name: Build Claude Desktop MCPB
+        timeout-minutes: 5
+        run: npm run build:mcpb
+
+      - name: Install pinned npm for Trusted Publishing
+        timeout-minutes: 2
+        run: npm install -g npm@12.0.1
 
       - name: Publish to npm via OIDC Trusted Publishing
-        run: npm publish
+        timeout-minutes: 5
+        run: |
+          package_name="$(node -p 'require("./package.json").name')"
+          package_version="$(node -p 'require("./package.json").version')"
+          published_version="$(npm view "$package_name@$package_version" version 2>/dev/null || true)"
+          if [ "$published_version" = "$package_version" ]; then
+            set -euo pipefail
+            published_integrity="$(npm view "$package_name@$package_version" dist.integrity)"
+            package_directory="$(mktemp -d)"
+            trap 'rm -rf "$package_directory"' EXIT
+            npm pack --json --pack-destination "$package_directory" > "$package_directory/pack.json"
+            tarball_path="$(node -e 'const fs=require("node:fs");const path=require("node:path");const [pack]=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(path.join(process.argv[2],pack.filename))' "$package_directory/pack.json" "$package_directory")"
+            local_integrity="$(node -e 'const fs=require("node:fs");const crypto=require("node:crypto");process.stdout.write(`sha512-${crypto.createHash("sha512").update(fs.readFileSync(process.argv[1])).digest("base64")}`)' "$tarball_path")"
+            if [ "$local_integrity" != "$published_integrity" ]; then
+              echo "Published npm tarball integrity differs from the release tag for $package_name@$package_version."
+              exit 1
+            fi
+            echo "$package_name@$package_version is already published with matching integrity; continuing the release retry."
+          else
+            npm publish
+          fi
+
+      - name: Upload or verify MCPB GitHub release asset
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          asset_path="$(find release -maxdepth 1 -type f -name '*.mcpb' -print -quit)"
+          if [ -z "$asset_path" ]; then
+            echo "No MCPB asset was built."
+            exit 1
+          fi
+          asset_name="$(basename "$asset_path")"
+
+          if gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fxq "$asset_name"; then
+            comparison_directory="$(mktemp -d)"
+            trap 'rm -rf "$comparison_directory"' EXIT
+            gh release download "$RELEASE_TAG" --pattern "$asset_name" --dir "$comparison_directory"
+            published_asset="$comparison_directory/$asset_name"
+            if cmp --silent "$asset_path" "$published_asset"; then
+              echo "$asset_name is already attached with matching bytes; continuing the release retry."
+            else
+              echo "$asset_name already exists with different bytes."
+              sha512sum "$asset_path" "$published_asset"
+              exit 1
+            fi
+          else
+            gh release upload "$RELEASE_TAG" "$asset_path"
+          fi
 
       # Publish the MCP server to the official MCP Registry (registry.modelcontextprotocol.io).
       # Auth is GitHub OIDC (no token): the workflow's identity authorizes the
       # io.github.TheBlueHouse75/* namespace declared in server.json.
       - name: Install mcp-publisher
+        timeout-minutes: 3
         run: |
-          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+          publisher_archive="$(mktemp)"
+          trap 'rm -f "$publisher_archive"' EXIT
+          curl --fail --location --retry 4 --retry-all-errors \
+            --connect-timeout 15 --max-time 120 \
+            "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" \
+            --output "$publisher_archive"
+          tar xzf "$publisher_archive" mcp-publisher
 
       - name: Sync server.json version from package.json
         run: |
           node -e "const fs=require('fs');const pkg=require('./package.json');const s=require('./server.json');s.version=pkg.version;s.packages[0].version=pkg.version;fs.writeFileSync('./server.json',JSON.stringify(s,null,2)+'\n')"
 
-      - name: Authenticate to MCP Registry (GitHub OIDC)
-        run: ./mcp-publisher login github-oidc
+      - name: Publish or verify server in MCP Registry
+        timeout-minutes: 3
+        env:
+          MCP_REGISTRY_BASE_URL: https://registry.modelcontextprotocol.io/v0.1/servers
+        run: |
+          registry_name="$(node -p 'require("./server.json").name')"
+          registry_version="$(node -p 'require("./server.json").version')"
+          encoded_name="$(node -p 'encodeURIComponent(process.argv[1])' "$registry_name")"
+          registry_url="$MCP_REGISTRY_BASE_URL/$encoded_name/versions/$registry_version"
+          response_file="/tmp/hermes-action-registry-response.json"
+          http_status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' "$registry_url")"
 
-      - name: Publish server to MCP Registry
-        run: ./mcp-publisher publish
+          case "$http_status" in
+            200)
+              REGISTRY_RESPONSE="$response_file" node -e 'const fs = require("node:fs"); const { isDeepStrictEqual } = require("node:util"); const expected = require("./server.json"); const actual = JSON.parse(fs.readFileSync(process.env.REGISTRY_RESPONSE, "utf8")).server; if (!isDeepStrictEqual(actual, expected)) throw new Error("Published MCP Registry metadata differs from server.json")'
+              echo "$registry_name@$registry_version is already published with matching metadata."
+              ;;
+            404)
+              ./mcp-publisher login github-oidc
+              ./mcp-publisher publish
+              ;;
+            *)
+              echo "MCP Registry lookup failed with HTTP $http_status."
+              cat "$response_file"
+              exit 1
+              ;;
+          esac

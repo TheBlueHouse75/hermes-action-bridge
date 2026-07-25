@@ -1,0 +1,12 @@
+{
+  "name": "hermes-action",
+  "version": "0.6.1",
+  "description": "Delegate real-world actions to Hermes Agent through Hermes Action Bridge.",
+  "author": {
+    "name": "Cyril Guilleminot",
+    "url": "https://github.com/TheBlueHouse75"
+  },
+  "repository": "https://github.com/TheBlueHouse75/hermes-action-bridge",
+  "license": "MIT",
+  "keywords": ["hermes-agent", "mcp", "claude-code", "automation", "delegation"]
+}

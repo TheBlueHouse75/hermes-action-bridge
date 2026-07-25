@@ -54,6 +54,27 @@ launcher path. Defaults remain conservative: never modify `CLAUDE.md` /
 `AGENTS.md` without `--project-hint`, never overwrite foreign skills or
 customized MCP entries, and stay idempotent.
 
+## Distribution surfaces
+
+The MCP-capable local distribution channels expose the same tools and preserve
+the same policy behavior:
+
+- `.agents/` and `plugins/hermes-action/.codex-plugin/` describe the Codex
+  plugin marketplace.
+- `.claude-plugin/` and `plugins/hermes-action/.claude-plugin/` describe the
+  Claude Code marketplace.
+- `skills/hermes-action-bridge/SKILL.md` is the canonical Agent Skills copy;
+  it provides delegation instructions only and does not configure an MCP
+  server. Tests keep it byte-identical to `skillMarkdown()` and the plugin
+  copy.
+- `extensions/hermes-action/` is the MCPB source for Claude Desktop and
+  Smithery. The generated archive bundles the bridge and production
+  dependencies, but deliberately excludes Hermes Agent, user configuration,
+  credentials, and machine-specific paths.
+
+The npm package version is the shared release version for plugin manifests,
+MCP launchers, and MCPB metadata. Tests fail when these copies drift.
+
 ## Config precedence
 
 The bridge merges config in this order:
