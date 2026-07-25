@@ -10,7 +10,7 @@
       "name": "hermes-action",
       "source": "./plugins/hermes-action",
       "description": "Delegate real-world actions to Hermes Agent through Hermes Action Bridge.",
-      "version": "0.6.0",
+      "version": "0.6.1",
       "author": {
         "name": "Cyril Guilleminot",
         "url": "https://github.com/TheBlueHouse75"

@@ -28,6 +28,8 @@ const manifest = readJson<McpbManifest>("extensions/hermes-action/manifest.json"
 const artifactPath = join(repositoryRoot, "release", `${packageJson.name}-${packageJson.version}.mcpb`);
 const rootConfigurationFiles = new Set(["manifest.json", "package.json", "package-lock.json"]);
 const textExtensions = new Set([".js", ".json", ".yaml", ".yml", ".md"]);
+const buildMcpbTimeoutMs = 25_000;
+const reproducibilityTestTimeoutMs = 30_000;
 
 function openArchive(archive: string): Promise<yauzl.ZipFile> {
   return new Promise((resolveArchive, rejectArchive) => {
@@ -156,7 +158,10 @@ function isRuntimeOrConfigurationText(entry: string): boolean {
 }
 
 function buildMcpb(): void {
-  execFileSync(process.execPath, ["scripts/build-mcpb.mjs"], { cwd: repositoryRoot });
+  execFileSync(process.execPath, ["scripts/build-mcpb.mjs"], {
+    cwd: repositoryRoot,
+    timeout: buildMcpbTimeoutMs,
+  });
 }
 
 function pngDimensions(path: string): { width: number; height: number } {
@@ -170,7 +175,7 @@ function pngDimensions(path: string): { width: number; height: number } {
 }
 
 describe("MCPB distribution", () => {
-  beforeAll(buildMcpb);
+  beforeAll(buildMcpb, reproducibilityTestTimeoutMs);
 
   it("keeps the MCPB manifest synchronized with the published package and defines the autonomous Node launcher", () => {
     expect(manifest).toMatchObject({
@@ -235,7 +240,7 @@ describe("MCPB distribution", () => {
     expect(bundleContent).not.toMatch(/(?:api[_-]?key|token|secret)\s*[:=]\s*["'][^"']+/i);
     expect(bundleContent).not.toContain("/Users/");
     expect(bundleContent).not.toMatch(/[A-Z]:\\Users\\/i);
-  });
+  }, reproducibilityTestTimeoutMs);
 
   it("starts the bundled runtime and completes an MCP tools handshake", async () => {
     const extractionRoot = mkdtempSync(join(tmpdir(), "hermes-action-mcpb-test-"));

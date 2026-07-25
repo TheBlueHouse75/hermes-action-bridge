@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-07-25
+
+### Fixed
+
+- Allowed the deterministic MCPB reproducibility test enough time to rebuild
+  its production bundle on GitHub-hosted runners without hitting Vitest's
+  default test or setup-hook timeouts.
+
 ## [0.6.0] - 2026-07-25
 
 ### Added
