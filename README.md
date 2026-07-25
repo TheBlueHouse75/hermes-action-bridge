@@ -79,7 +79,8 @@ installed and configured on the same computer as the local bridge.
 | Claude Code marketplace | Claude plugin with the Skill and a version-pinned MCP server | `claude plugin marketplace add TheBlueHouse75/hermes-action-bridge`, then `claude plugin install hermes-action@hermes-action-bridge` |
 | Claude Desktop | Self-contained MCPB extension for the bridge runtime | From the [latest GitHub Release](https://github.com/TheBlueHouse75/hermes-action-bridge/releases/latest), download `hermes-action-bridge-<version>.mcpb` and open it with Claude Desktop |
 | Agent Skills | Portable instructions for supported coding agents | `npx skills add TheBlueHouse75/hermes-action-bridge --skill hermes-action-bridge` |
-| Smithery | The same local MCPB bundle through the Smithery catalog | Check the [latest release notes](https://github.com/TheBlueHouse75/hermes-action-bridge/releases/latest) for the verified Smithery listing or its pending status |
+| Smithery Skill | Public portable instructions in the Smithery Skill catalog | Check the [latest release notes](https://github.com/TheBlueHouse75/hermes-action-bridge/releases/latest) for the verified Skill listing or its pending status |
+| Smithery MCPB | The same local MCPB bundle through the Smithery catalog | Check the [latest release notes](https://github.com/TheBlueHouse75/hermes-action-bridge/releases/latest) for the verified MCPB listing or its pending status |
 
 The standalone Agent Skill only teaches an agent when and how to delegate; it
 does not register an MCP server. Use the npm installer, Claude marketplace, or

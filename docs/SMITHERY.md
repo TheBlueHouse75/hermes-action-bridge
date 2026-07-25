@@ -7,7 +7,7 @@ credentials, or machine-specific paths.
 
 ## Maintainer procedure
 
-[The Smithery MCPB publication section of the distribution runbook](distribution-runbook.md#6-smithery-mcpb-publication)
+[The Smithery MCPB publication section of the distribution runbook](distribution-runbook.md#7-smithery-mcpb-publication)
 is the canonical release procedure. Follow it to build and inspect the exact
 GitHub Release artifact, authenticate with `smithery auth login`, publish it,
 and retain the resulting Smithery server-page URL as proof.
