@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed
+
+- Pinned the Codex marketplace plugin runtime to the matching published bridge
+  version instead of resolving an unbounded npm latest release.
+
 ## [0.5.0] - 2026-07-25
 
 ### Added

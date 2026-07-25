@@ -16,11 +16,17 @@ describe("published metadata", () => {
     expect(pluginJson.version).toBe(packageJson.version);
   });
 
-  it("uses the supported Codex plugin MCP manifest shape", () => {
+  it("uses the supported Codex plugin MCP shape and pins the package version", () => {
+    const packageJson = readJson("package.json");
     const manifest = readJson("plugins/hermes-action/.mcp.json");
 
     expect(manifest).toHaveProperty("mcpServers.hermes-action");
     expect(manifest).not.toHaveProperty("mcp_servers");
+    expect(manifest).toHaveProperty("mcpServers.hermes-action.args", [
+      "-y",
+      `hermes-action-bridge@${String(packageJson.version)}`,
+      "mcp",
+    ]);
   });
 
   it("includes the Codex plugin in the npm package", () => {
