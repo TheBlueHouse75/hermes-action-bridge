@@ -15,6 +15,7 @@ type McpbManifest = {
   description: string;
   author: { name: string };
   icon: string;
+  tools?: Array<{ name: string; description?: string }>;
   server: {
     type: string;
     entry_point: string;
@@ -242,9 +243,10 @@ describe("MCPB distribution", () => {
     expect(bundleContent).not.toMatch(/[A-Z]:\\Users\\/i);
   }, reproducibilityTestTimeoutMs);
 
-  it("starts the bundled runtime and completes an MCP tools handshake", async () => {
+  it("starts the bundled runtime and keeps its manifest tool catalog in parity", async () => {
     const extractionRoot = mkdtempSync(join(tmpdir(), "hermes-action-mcpb-test-"));
     const configPath = join(extractionRoot, "config.yaml");
+    const bundledManifest = JSON.parse(await archiveText(artifactPath, "manifest.json")) as McpbManifest;
     writeFileSync(configPath, "presets:\n  default:\n    skills: []\n    toolsets: []\n");
     await extractArchive(artifactPath, extractionRoot);
 
@@ -253,7 +255,13 @@ describe("MCPB distribution", () => {
         configPath,
         async (client) => {
           const result = await client.listTools();
-          expect(result.tools.map((tool) => tool.name)).toContain("hermes_status");
+          const runtimeTools = result.tools
+            .map((tool) => ({
+              name: tool.name,
+              ...(tool.description ? { description: tool.description } : {}),
+            }))
+            .sort((left, right) => left.name.localeCompare(right.name));
+          expect(bundledManifest.tools).toEqual(runtimeTools);
         },
         {
           cliPath: join(extractionRoot, manifest.server.entry_point),

@@ -1,4 +1,4 @@
-import { cpSync, createWriteStream, existsSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, createWriteStream, existsSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, posix, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -67,10 +67,25 @@ function createArchive(archivePath, sourceDirectory) {
   });
 }
 
+async function discoverManifestTools() {
+  const [{ defaultConfig }, { listBridgeTools }] = await Promise.all([
+    import(new URL("../dist/config.js", import.meta.url)),
+    import(new URL("../dist/mcp-catalog.js", import.meta.url)),
+  ]);
+  const tools = await listBridgeTools(defaultConfig);
+  return tools
+    .map((tool) => ({
+      name: tool.name,
+      ...(tool.description ? { description: tool.description } : {}),
+    }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
 try {
   execFileSync(npmCommand, ["run", "build"], { cwd: repositoryRoot, stdio: "inherit" });
 
-  cpSync(join(extensionRoot, "manifest.json"), join(stagingDirectory, "manifest.json"));
+  const manifestWithTools = { ...manifest, tools: await discoverManifestTools() };
+  writeFileSync(join(stagingDirectory, "manifest.json"), `${JSON.stringify(manifestWithTools, null, 2)}\n`);
   cpSync(join(extensionRoot, "README.md"), join(stagingDirectory, "README.md"));
   cpSync(join(extensionRoot, "icon.png"), join(stagingDirectory, "icon.png"));
   cpSync(join(repositoryRoot, "package.json"), join(stagingDirectory, "package.json"));

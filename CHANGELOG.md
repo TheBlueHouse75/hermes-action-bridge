@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-07-25
+
+### Added
+
+- Generated the MCPB tool catalog from the runtime MCP handshake and verified
+  archive/runtime parity without maintaining a second manual tool list.
+
 ## [0.6.1] - 2026-07-25
 
 ### Fixed

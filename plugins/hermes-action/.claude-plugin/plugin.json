@@ -1,6 +1,6 @@
 {
   "name": "hermes-action",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Delegate real-world actions to Hermes Agent through Hermes Action Bridge.",
   "author": {
     "name": "Cyril Guilleminot",
