@@ -13,3 +13,6 @@ docs/prds/
 
 # Runtime logs from external tooling (not part of the project)
 logs/
+
+# Generated MCP Bundle release artifacts
+release/

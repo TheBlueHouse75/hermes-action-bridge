@@ -1,0 +1,22 @@
+{
+  "name": "hermes-action-bridge",
+  "owner": {
+    "name": "Cyril Guilleminot",
+    "url": "https://github.com/TheBlueHouse75"
+  },
+  "description": "Claude Code plugin marketplace for Hermes Action Bridge.",
+  "plugins": [
+    {
+      "name": "hermes-action",
+      "source": "./plugins/hermes-action",
+      "description": "Delegate real-world actions to Hermes Agent through Hermes Action Bridge.",
+      "version": "0.6.0",
+      "author": {
+        "name": "Cyril Guilleminot",
+        "url": "https://github.com/TheBlueHouse75"
+      },
+      "repository": "https://github.com/TheBlueHouse75/hermes-action-bridge",
+      "license": "MIT"
+    }
+  ]
+}

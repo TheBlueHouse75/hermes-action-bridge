@@ -13,5 +13,6 @@ describe("examples", () => {
     expect(
       readFileSync(join(root, "plugins", "hermes-action", "skills", "hermes-action-bridge", "SKILL.md"), "utf8"),
     ).toBe(expected);
+    expect(readFileSync(join(root, "skills", "hermes-action-bridge", "SKILL.md"), "utf8")).toBe(expected);
   });
 });

@@ -1,0 +1,35 @@
+{
+  "manifest_version": "0.3",
+  "name": "hermes-action-bridge",
+  "display_name": "Hermes Action Bridge",
+  "version": "0.6.0",
+  "description": "Delegate approved local actions to Hermes Agent through a policy-controlled MCP server.",
+  "author": {
+    "name": "Cyril Guilleminot",
+    "url": "https://github.com/TheBlueHouse75"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TheBlueHouse75/hermes-action-bridge.git"
+  },
+  "homepage": "https://github.com/TheBlueHouse75/hermes-action-bridge#readme",
+  "documentation": "https://github.com/TheBlueHouse75/hermes-action-bridge/blob/main/extensions/hermes-action/README.md",
+  "support": "https://github.com/TheBlueHouse75/hermes-action-bridge/issues",
+  "icon": "icon.png",
+  "license": "MIT",
+  "compatibility": {
+    "platforms": ["darwin", "win32"],
+    "runtimes": {
+      "node": ">=20.0.0"
+    }
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "dist/cli.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/cli.js", "mcp"],
+      "env": {}
+    }
+  }
+}

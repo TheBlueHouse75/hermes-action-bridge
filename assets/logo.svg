@@ -1,20 +1,35 @@
-<svg width="400" height="400" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="400" y2="400" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#5468FF"/>
-      <stop offset="1" stop-color="#A855F7"/>
+    <linearGradient id="background" x1="136" y1="96" x2="888" y2="936" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5264FF"/>
+      <stop offset="0.54" stop-color="#7658F4"/>
+      <stop offset="1" stop-color="#9D4EDD"/>
     </linearGradient>
+    <radialGradient id="highlight" cx="0" cy="0" r="1" gradientTransform="translate(332 238) rotate(50) scale(680)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.18"/>
+      <stop offset="0.62" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="pulse" x1="464" y1="384" x2="560" y2="480" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5264FF"/>
+      <stop offset="1" stop-color="#8B55EA"/>
+    </linearGradient>
+    <filter id="mark-shadow" x="170" y="300" width="684" height="354" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="22" stdDeviation="20" flood-color="#2F207A" flood-opacity="0.28"/>
+    </filter>
   </defs>
-  <rect width="400" height="400" rx="92" fill="url(#bg)"/>
-  <!-- suspension cables / bridge deck arc -->
-  <path d="M104 246 Q200 150 296 246" fill="none" stroke="#FFFFFF" stroke-width="18" stroke-linecap="round"/>
-  <!-- piers -->
-  <line x1="148" y1="224" x2="148" y2="286" stroke="#FFFFFF" stroke-width="15" stroke-linecap="round"/>
-  <line x1="200" y1="198" x2="200" y2="286" stroke="#FFFFFF" stroke-width="15" stroke-linecap="round"/>
-  <line x1="252" y1="224" x2="252" y2="286" stroke="#FFFFFF" stroke-width="15" stroke-linecap="round"/>
-  <!-- deck / baseline -->
-  <line x1="100" y1="286" x2="300" y2="286" stroke="#FFFFFF" stroke-width="17" stroke-linecap="round"/>
-  <!-- delegation endpoint nodes -->
-  <circle cx="104" cy="246" r="17" fill="#FFFFFF"/>
-  <circle cx="296" cy="246" r="17" fill="#FFFFFF"/>
+
+  <rect width="1024" height="1024" rx="236" fill="url(#background)"/>
+  <rect x="1" y="1" width="1022" height="1022" rx="235" fill="url(#highlight)"/>
+
+  <g filter="url(#mark-shadow)">
+    <!-- Two agent endpoints converge on one controlled action gateway. -->
+    <circle cx="238" cy="580" r="58" fill="#FFFFFF"/>
+    <circle cx="786" cy="580" r="58" fill="#FFFFFF"/>
+    <path d="M284 580C370 580 380 444 464 444" fill="none" stroke="#FFFFFF" stroke-width="62" stroke-linecap="round"/>
+    <path d="M560 444C644 444 654 580 740 580" fill="none" stroke="#FFFFFF" stroke-width="62" stroke-linecap="round"/>
+
+    <!-- The gateway is deliberately larger than the connecting paths so the mark survives at 32 px. -->
+    <rect x="432" y="364" width="160" height="160" rx="50" fill="#FFFFFF"/>
+    <rect x="468" y="400" width="88" height="88" rx="29" fill="url(#pulse)"/>
+  </g>
 </svg>

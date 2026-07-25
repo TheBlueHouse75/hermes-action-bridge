@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-25
+
+### Added
+
+- Claude Code plugin marketplace metadata for installing the version-pinned
+  Hermes Action plugin directly from GitHub.
+- A versioned, self-contained MCPB release artifact for Claude Desktop and
+  Smithery local-stdio distribution.
+- A canonical `skills/hermes-action-bridge/SKILL.md` entry for skills.sh and
+  other Agent Skills-compatible clients.
+- Distribution drift tests and release-asset automation for the marketplace,
+  Skill, and MCPB metadata.
+
 ### Changed
 
 - Pinned the Codex marketplace plugin runtime to the matching published bridge

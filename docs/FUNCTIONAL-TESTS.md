@@ -44,6 +44,24 @@ The installer tests verify (with injected home/cwd and temp `HOME`, no real agen
 - the Streamable HTTP server completes an MCP handshake on loopback and rejects
   public binding, weak/missing authentication, and non-Tailscale addresses.
 
+The distribution tests verify:
+
+- Claude Code marketplace and plugin manifests use the npm package version and
+  the checked-in, version-pinned MCP configuration.
+- The canonical skills.sh copy remains byte-identical to both the installer
+  template and the plugin Skill.
+- The MCPB manifest matches the package version and the generated archive
+  contains the bridge runtime and its production dependencies without secrets
+  or machine-specific paths.
+
+Build the Claude Desktop/Smithery artifact explicitly with:
+
+```bash
+npm run build:mcpb
+npm run inspect:mcpb
+npm test -- tests/mcpb-distribution.test.ts
+```
+
 ## Live Hermes smoke test
 
 Use a safe dry-run first:

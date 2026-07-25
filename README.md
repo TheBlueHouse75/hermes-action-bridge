@@ -68,6 +68,32 @@ Claude Code is unavailable, conflicting, or cannot verify its user-scoped
 stdio MCP entry, the command exits non-zero without installing the requested
 skills. Use `--project` for an explicit skill-only setup.
 
+### Other distribution channels
+
+Choose the channel that matches the agent surface. Hermes Agent must always be
+installed and configured on the same computer as the local bridge.
+
+| Channel | What it configures | Install |
+| --- | --- | --- |
+| npm installer | Skill and verified user-scoped MCP for Codex CLI/app and Claude Code | `hermes-action install all` |
+| Claude Code marketplace | Claude plugin with the Skill and a version-pinned MCP server | `claude plugin marketplace add TheBlueHouse75/hermes-action-bridge`, then `claude plugin install hermes-action@hermes-action-bridge` |
+| Claude Desktop | Self-contained MCPB extension for the bridge runtime | From the [latest GitHub Release](https://github.com/TheBlueHouse75/hermes-action-bridge/releases/latest), download `hermes-action-bridge-<version>.mcpb` and open it with Claude Desktop |
+| Agent Skills | Portable instructions for supported coding agents | `npx skills add TheBlueHouse75/hermes-action-bridge --skill hermes-action-bridge` |
+| Smithery | The same local MCPB bundle through the Smithery catalog | Check the [latest release notes](https://github.com/TheBlueHouse75/hermes-action-bridge/releases/latest) for the verified Smithery listing or its pending status |
+
+The standalone Agent Skill only teaches an agent when and how to delegate; it
+does not register an MCP server. Use the npm installer, Claude marketplace, or
+MCPB channel when MCP tools are required.
+
+Maintainers releasing a new version should follow the
+[distribution runbook](docs/distribution-runbook.md), which covers the
+automated release workflow and the manual directory publication checks.
+
+Codex CLI and the Codex surface in the ChatGPT desktop app share the local
+Codex MCP configuration on the same host. A general ChatGPT connector is a
+different distribution target: it requires a remotely reachable MCP server
+and is not installed by this local stdio bundle.
+
 <details>
 <summary>From source (for development)</summary>
 
@@ -312,7 +338,9 @@ codex plugin marketplace add TheBlueHouse75/hermes-action-bridge
 codex plugin add hermes-action@hermes-action-bridge
 ```
 
-This registers the `hermes-action` MCP server and the Hermes delegation skill in Codex. Hermes Agent must be installed locally — the plugin runs `npx -y hermes-action-bridge mcp`.
+This registers the `hermes-action` MCP server and the Hermes delegation skill
+in Codex. Hermes Agent must be installed locally — the plugin runs the
+version-pinned npm package with `npx`.
 
 > **Faster MCP startup:** `npx` re-resolves the package on every server start.
 > The native installer registers the absolute global launcher instead.

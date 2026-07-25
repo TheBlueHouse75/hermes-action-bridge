@@ -6,7 +6,12 @@ import { dirname, join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
-const cli = join(process.cwd(), "dist", "cli.js");
+const defaultCliPath = join(process.cwd(), "dist", "cli.js");
+
+interface McpClientOptions {
+  cliPath?: string;
+  cwd?: string;
+}
 
 /**
  * Write a fake `hermes` executable (Node script body, no shebang) plus a project
@@ -26,11 +31,15 @@ export function writeFakeHermesConfig(fakeHermesBody: string, configBody?: strin
 }
 
 /** Spawn the bridge MCP server with the given config, run `fn` against a connected client, and always close. */
-export async function withMcpClient<T>(configPath: string, fn: (client: Client) => Promise<T>): Promise<T> {
+export async function withMcpClient<T>(
+  configPath: string,
+  fn: (client: Client) => Promise<T>,
+  options: McpClientOptions = {},
+): Promise<T> {
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [cli, "mcp", "--config", configPath],
-    cwd: process.cwd(),
+    args: [options.cliPath ?? defaultCliPath, "mcp", "--config", configPath],
+    cwd: options.cwd ?? process.cwd(),
     env: {
       ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined)),
       HERMES_ACTION_AUDIT_FILE: join(dirname(configPath), "audit.jsonl"),
