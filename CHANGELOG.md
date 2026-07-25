@@ -29,6 +29,9 @@ All notable changes to this project are documented here. The format is based on
   separate Hermes-owned integrations from ordinary local coding work.
 - The Codex plugin manifest now uses the supported `mcpServers` shape, ships in
   the npm tarball, and shares the package version.
+- Refreshed patched `fast-uri` and `postcss` releases in the lockfile and
+  documented why the remaining transitive Hono advisory is not reachable in
+  the bridge HTTP architecture.
 
 ### Documentation
 

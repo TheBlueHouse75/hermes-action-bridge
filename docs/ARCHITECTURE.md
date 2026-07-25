@@ -159,3 +159,18 @@ never exposes an unauthenticated diagnostics endpoint.
 Tailscale Serve in front of a loopback listener remains the preferred remote
 deployment because TLS and tailnet identity stay outside the bridge. Requests
 forwarded with a `*.ts.net` Host still require the bridge bearer token.
+
+### Transitive Hono advisory
+
+MCP SDK 1.29.0 currently depends on `@hono/node-server` 1.x, which npm flags
+under [GHSA-frvp-7c67-39w9](https://github.com/advisories/GHSA-frvp-7c67-39w9).
+That advisory applies only to the package's `serve-static` middleware on
+Windows. The bridge never imports that middleware, serves no static files, and
+rejects every HTTP path except `/mcp`, so the vulnerable code path is not
+reachable here.
+
+Re-evaluate this acceptance when the v1 SDK updates its Hono dependency, or
+before adding static-file serving, a Hono middleware layer, or any HTTP route
+that maps request paths to the filesystem. Do not force Hono 2 through an npm
+override: the current SDK declares `^1.19.9`, and doing so produces an invalid
+dependency tree for global installs.
