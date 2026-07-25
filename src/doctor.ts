@@ -1,13 +1,11 @@
 import { spawnSync } from "node:child_process";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { defaultConfig } from "./config.js";
+import { listBridgeTools } from "./mcp-catalog.js";
 import { checkHermesStatus, versionProbeTimeoutMs } from "./status.js";
 import { buildEffectiveRun, defaultTimeoutSeconds } from "./run.js";
 import { runHermesCli } from "./adapters/hermes-cli.js";
 import { skillStates } from "./install/install-service.js";
 import { inspectMcp, type McpCommandRunner, type McpLauncher, type McpRegistration } from "./install/mcp-service.js";
-import { createBridgeMcpServer } from "./mcp-server.js";
 import type { BridgeConfig } from "./types.js";
 import type { ManagedState, PathContext, SkillAgent } from "./install/types.js";
 
@@ -70,24 +68,16 @@ export async function probeCheck(config: BridgeConfig): Promise<DoctorCheck> {
 
 /** Token-free MCP initialize/list-tools handshake against the current server implementation. */
 export async function mcpHandshakeCheck(config: BridgeConfig): Promise<DoctorCheck> {
-  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  const server = createBridgeMcpServer(config);
-  const client = new Client({ name: "hermes-action-doctor", version: "1.0.0" });
   try {
-    await server.connect(serverTransport);
-    await client.connect(clientTransport);
-    const tools = await client.listTools();
-    const names = new Set(tools.tools.map((tool) => tool.name));
+    const tools = await listBridgeTools(config);
+    const names = new Set(tools.map((tool) => tool.name));
     const required = ["hermes_run", "hermes_plan", "hermes_capabilities", "hermes_status"];
     const missing = required.filter((name) => !names.has(name));
     return missing.length === 0
-      ? { id: "mcp:handshake", status: "pass", detail: `${tools.tools.length} tools available` }
+      ? { id: "mcp:handshake", status: "pass", detail: `${tools.length} tools available` }
       : { id: "mcp:handshake", status: "fail", detail: `missing tools: ${missing.join(", ")}` };
   } catch (error) {
     return { id: "mcp:handshake", status: "fail", detail: error instanceof Error ? error.message : String(error) };
-  } finally {
-    await client.close().catch(() => undefined);
-    await server.close().catch(() => undefined);
   }
 }
 

@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "hermes-action-bridge",
   "display_name": "Hermes Action Bridge",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Delegate approved local actions to Hermes Agent through a policy-controlled MCP server.",
   "author": {
     "name": "Cyril Guilleminot",
