@@ -5,12 +5,14 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { ElicitRequestSchema, type ElicitRequest, type ElicitResult } from "@modelcontextprotocol/sdk/types.js";
 
 const defaultCliPath = join(process.cwd(), "dist", "cli.js");
 
 interface McpClientOptions {
   cliPath?: string;
   cwd?: string;
+  elicitation?: ((params: ElicitRequest["params"]) => ElicitResult | Promise<ElicitResult>) | undefined;
 }
 
 /**
@@ -46,7 +48,14 @@ export async function withMcpClient<T>(
     },
     stderr: "pipe",
   });
-  const client = new Client({ name: "hermes-action-test", version: "0.1.0" });
+  const elicitation = options.elicitation;
+  const client = new Client(
+    { name: "hermes-action-test", version: "0.1.0" },
+    { capabilities: elicitation ? { elicitation: { form: {} } } : {} },
+  );
+  if (elicitation) {
+    client.setRequestHandler(ElicitRequestSchema, async (request) => elicitation(request.params));
+  }
   await client.connect(transport);
   try {
     return await fn(client);

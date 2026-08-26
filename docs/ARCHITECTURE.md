@@ -106,13 +106,26 @@ The bridge does not decide how Hermes completes the task. It only labels the req
 
 ## Policy
 
-Direct CLI and `hermes_run` calls rely on the **host agent's approval prompt**.
-The structured MCP path adds a second deterministic barrier:
-`hermes_prepare` creates a local no-tool summary, stores an immutable short-lived request, and
-`hermes_approve` consumes it exactly once. The bridge never treats its own model
-output as human approval.
+Direct CLI execution is an explicit trusted-operator path. The MCP surface has
+a separate deterministic barrier: immediately before any effective `execute`,
+the server requests MCP form elicitation from the client, displays the exact
+action and metadata, and continues only for `accept` plus `confirm=true`.
 
-The bridge's own guard is a secondary, deterministic net: in `mode=execute` it changes the effective mode to `request-approval` unless the preset/policy is explicitly trusted (empty `require_approval_for`) or YOLO is enabled. This is independent of the prompt's language or wording.
+This boundary trusts the MCP client to implement elicitation conformantly. The
+[protocol](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#user-interaction-model)
+requires elicitation-capable clients to present UI, identify the
+requesting server, allow decline/cancel, and let the user review the response.
+A non-conforming client or an auto-answer hook can forge the response and is
+outside this boundary; the bridge must not be exposed to untrusted MCP clients.
+
+The structured two-phase path adds immutability and one-shot consumption:
+`hermes_prepare` creates a local no-tool summary and stores a short-lived
+request; `hermes_approve` elicits human confirmation before consuming it. The
+server revalidates ownership, expiry, state, and queue capacity after the
+interactive wait. A client without form elicitation fails closed, as do
+decline, cancellation, timeout, and malformed confirmation responses.
+
+The mode guard is a secondary, deterministic net: in `mode=execute` it changes the effective mode to `request-approval` unless the preset/policy is explicitly trusted (empty `require_approval_for`) or YOLO is enabled. This is independent of the prompt's language or wording. Trusted presets and YOLO bypass only that downgrade; they do not bypass MCP elicitation.
 
 Keyword risk detection (`detectRisks`) is **informational only**: recognized categories are listed in the prompt envelope to help the human and Hermes decide, but they never drive the mode. Keyword matching is English-biased and easily evaded, so it is not treated as a security control.
 
@@ -124,7 +137,9 @@ YOLO is explicit and local:
 hermes-action run --yolo --mode execute "..."
 ```
 
-It bypasses the bridge policy only. Hermes Agent still enforces its own rules and any tool/provider/platform approval flow.
+It bypasses the mode-downgrade policy only. MCP execution still requires form
+elicitation. Direct CLI use remains a trusted-local path, and Hermes Agent
+still enforces its own rules and any tool/provider/platform approval flow.
 
 ## Prompt delivery and runtime limits
 

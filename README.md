@@ -8,7 +8,10 @@
 
 A configurable bridge that lets external agents delegate real-world actions to [Hermes Agent](https://hermes-agent.nousresearch.com/docs) without reimplementing Hermes skills, tools, platform integrations, browser automation, cron jobs, or messaging flows.
 
-Use it from Claude Code, Codex, Cursor, CI jobs, shell scripts, or any MCP-capable client.
+Use it from Claude Code, Codex, Cursor, CI jobs, shell scripts, or another
+MCP-capable client. MCP execution requires interactive form elicitation and
+fails closed in non-interactive clients; plan, draft, dry-run, and direct CLI
+workflows remain available to automation.
 
 ```text
 external agent -> hermes-action -> Hermes Agent -> skills/tools/integrations
@@ -31,7 +34,7 @@ If an agent needs to do something outside its local coding session — research,
 - Per-run timeouts (configurable, with per-mode defaults) that always reap the Hermes child process.
 - Dry-run mode for debugging the exact Hermes command, prompt, and computed prompt size.
 - Complete Codex and Claude Code installer: managed skill plus verified global MCP registration.
-- MCP capability discovery, cancellable asynchronous jobs, and one-shot two-phase approvals with a privacy-preserving local audit log.
+- MCP capability discovery, cancellable asynchronous jobs, and one-shot two-phase approvals gated on interactive form elicitation, with a privacy-preserving local audit log.
 - Local stdio transport plus an opt-in, authenticated Streamable HTTP transport for Tailscale-restricted hosts.
 - No project-specific assumptions. All behavior is configured through YAML and CLI flags.
 
@@ -143,10 +146,11 @@ hermes-action run --dry-run --json "Summarize this project."
 - `draft`: Hermes produces an artifact only. No external side effects.
 - `execute`: Hermes may execute allowed actions, while still following Hermes' own safety rules.
 - `request-approval`: Hermes prepares an action without executing it. MCP
-  callers should use `hermes_prepare` and then call `hermes_approve` only after
-  explicit human approval.
+  callers should use `hermes_prepare` and then `hermes_approve`; the latter
+  opens an interactive client form showing the exact action and executes only
+  after the human confirms it.
 
-The guard is deterministic and language-agnostic: in `execute` mode the bridge switches to `request-approval` by default — regardless of the prompt's wording or language — unless the preset is explicitly trusted (empty `require_approval_for`) or `--yolo` is set. It does not try to infer risk from keywords. See [Security model](#security-model) for why the real barrier is your coding agent's own approval prompt.
+The policy guard is deterministic and language-agnostic: in `execute` mode the bridge switches to `request-approval` by default — regardless of the prompt's wording or language — unless the preset is explicitly trusted (empty `require_approval_for`) or `--yolo` is set. Separately, every effective MCP `execute` request requires interactive client confirmation, including trusted presets and YOLO. The bridge does not try to infer risk from keywords.
 
 Risk categories below are **informational only**: the bridge surfaces the ones it recognizes in the prompt envelope to help you and Hermes decide, but they never drive the mode. (Keyword matching is English-biased and trivially evaded, so it must not be a security control.)
 
@@ -166,7 +170,10 @@ YOLO mode is off by default.
 hermes-action run --yolo --mode execute "Do the task now."
 ```
 
-YOLO only bypasses the bridge policy. It does not remove Hermes Agent's own safety rules, provider/tool approval prompts, or platform constraints.
+YOLO bypasses the mode-downgrade policy. It does not bypass the MCP interactive
+confirmation barrier, Hermes Agent's own safety rules, provider/tool approval
+prompts, or platform constraints. Direct CLI use remains an explicit trusted-local
+escape hatch.
 
 Use it only when the caller and environment are trusted.
 
@@ -190,7 +197,7 @@ hermes-action run --preset act --mode execute "post the release note to #general
 
 **Keep it safe:**
 
-- A trusted preset relaxes only the bridge's own gate. The real barrier stays your coding agent's approval prompt, so **do not allowlist `hermes-action run` (`execute`/`yolo`)** (see [Security model](#security-model)).
+- A trusted preset relaxes the mode-downgrade policy. Effective MCP execution still requires interactive confirmation; direct CLI execution relies on the operator and environment being trusted.
 - Keep it in your **user** config; it never ships in the public package, and the distributed `SKILL.md` stays cautious for everyone else.
 - Reserve trusted presets for actions a human explicitly asks for. Leave the conservative default for anything an agent could trigger on its own.
 
@@ -398,7 +405,7 @@ hermes-action mcp
 
 Exposed tools:
 
-- `hermes_run`: delegate a request to Hermes. Optional overrides: `mode`, `preset`, `contextFiles`, `yolo`, `dryRun`, and — to trade cost for speed on simple tasks — `model`, `provider`, `maxTurns`, `timeoutSeconds`.
+- `hermes_run`: delegate a request to Hermes. Optional overrides: `mode`, `preset`, `contextFiles`, `yolo`, `dryRun`, and — to trade cost for speed on simple tasks — `model`, `provider`, `maxTurns`, `timeoutSeconds`. Any effective `execute` request opens an interactive confirmation form first.
 - `hermes_plan`: shortcut for `hermes_run` with `mode=plan`.
 - `hermes_capabilities`: report configured presets, skills, toolsets, runtime, and policy without inventing live integrations.
 - `hermes_presets`: list configured presets.
@@ -406,7 +413,8 @@ Exposed tools:
 - `hermes_submit`, `hermes_job_status`, `hermes_result`, `hermes_cancel`:
   manage bounded, process-local asynchronous jobs.
 - `hermes_prepare`, `hermes_approve`, `hermes_reject`: create and consume a
-  short-lived one-shot approval before execution.
+  short-lived one-shot approval. `hermes_approve` asks the MCP client for
+  interactive confirmation before execution.
 
 The MCP surface delegates to Hermes instead of mirroring every Hermes tool.
 Jobs and approvals are intentionally process-local: restarting the MCP server
@@ -470,18 +478,33 @@ Functional tests use a fake Hermes binary to verify command construction, prompt
 
 ## Security model
 
-Direct CLI and `hermes_run` usage assumes a **supervised host agent**: Claude
-Code / Codex ask you to approve the command or tool call. For MCP side effects,
-prefer the bridge's additional, testable two-phase flow:
-`hermes_prepare` returns a local no-tool summary and opaque approval ID, and
-`hermes_approve` consumes the unchanged request exactly once after the human
-approves it.
+Direct CLI execution assumes a trusted, supervised operator. MCP execution has
+an additional protocol-enforced gate: every effective `execute` request asks
+the client for MCP form elicitation, shows the exact action and metadata, and
+runs only when the response is both `accept` and `confirm=true`.
+
+For side effects, prefer the testable two-phase flow: `hermes_prepare` returns
+a local no-tool summary and opaque approval ID, and `hermes_approve` opens the
+interactive confirmation before consuming the unchanged request exactly once.
+Unsupported clients, CI jobs, shell scripts, cancellations, timeouts, and
+declines fail closed without execution. Use plan, draft, dry-run, or the direct
+CLI when an interactive MCP client is unavailable; do not describe the direct
+CLI as providing a distinct human-approval barrier.
+
+This gate assumes a conforming, trusted MCP client. The
+[MCP specification](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#user-interaction-model)
+requires clients that advertise elicitation to provide UI, identify the
+requesting server, offer decline/cancel, and let the user review the response.
+A malicious client, or an elicitation hook configured to auto-answer, can forge
+`accept` and `confirm=true`; do not expose the bridge to untrusted MCP clients.
+The bridge does not claim a human boundary in that deployment model.
 
 The bridge's own guard is a secondary net: `execute` is downgraded to `request-approval` by default unless a preset is trusted (empty `require_approval_for`) or `--yolo` is set. The bridge never injects `--yolo` or a bypass flag on its own.
 
-- **Do not allowlist / auto-approve `hermes-action run`, `hermes_run`, or
-  `hermes_approve`**. A command-pattern allowlist cannot distinguish a safe
-  plan from an execution with side effects.
+- **Do not auto-answer MCP elicitation or install an elicitation hook that
+  accepts execution forms.** Doing so deliberately removes the human boundary.
+- **Do not allowlist `hermes-action run` (`execute`/`yolo`)**. A command-pattern
+  allowlist cannot distinguish a safe plan from an execution with side effects.
 - Do not put secrets in `.hermes-action.yaml`. Keep provider credentials in Hermes Agent, your OS keychain, or the platform's secure store.
 - Treat `--yolo` as a trusted-local escape hatch, not a default.
 
