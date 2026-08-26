@@ -49,11 +49,14 @@ For public posts, outbound messages, deletes, payments, credential changes, or
 git pushes:
 
 1. Call \`hermes_prepare\` to produce a local no-tool summary and approval ID.
-2. Show \`preview.action\` and the rest of the preview to the human.
-3. Call \`hermes_approve\` only after the human explicitly approves that
-   prepared action; otherwise call \`hermes_reject\`.
+2. Call \`hermes_approve\` to open the MCP client's interactive confirmation
+   form. The bridge shows the exact action and executes only if the human
+   accepts and checks the confirmation field.
+3. Call \`hermes_reject\` when the action is no longer wanted.
 
-Never treat the model's own decision as human approval.
+Never answer or simulate the confirmation form yourself. Clients without MCP
+form elicitation fail closed; use plan, draft, or direct supervised CLI work
+instead of trying to bypass that boundary.
 
 ## CLI fallback
 
@@ -78,7 +81,7 @@ export function projectHint(): string {
     "browser automation, cron, research, or platform integrations), use the",
     "`hermes-action-bridge` skill and installed `hermes_*` MCP tools. Discover",
     "capabilities first, prefer `hermes_plan`, and use `hermes_prepare` followed",
-    "by `hermes_approve` only after explicit human approval for side effects.",
+    "by `hermes_approve`; never answer its interactive confirmation yourself.",
   ].join("\n");
 }
 

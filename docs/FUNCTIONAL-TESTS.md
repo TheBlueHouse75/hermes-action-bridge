@@ -41,6 +41,10 @@ The installer tests verify (with injected home/cwd and temp `HOME`, no real agen
   output;
 - approvals are immutable, short-lived, and one-shot, while audit records omit
   prompt and output content;
+- MCP execution fails closed without form elicitation, on human decline, and
+  when approval state changes during the interactive wait;
+- direct MCP `execute` requests cannot bypass confirmation through YOLO or a
+  trusted preset;
 - the Streamable HTTP server completes an MCP handshake on loopback and rejects
   public binding, weak/missing authentication, and non-Tailscale addresses.
 
@@ -126,5 +130,8 @@ Call `hermes_status` and `hermes_capabilities` first. They should report the
 runtime and declarative presets without spending provider tokens.
 
 Then call `hermes_plan` before making real side-effecting calls. Validate a
-two-phase action with `hermes_prepare`; call `hermes_reject` unless a human
-explicitly approves the exact request returned in `preview.action`.
+two-phase action with `hermes_prepare`, followed by `hermes_approve`. The MCP
+client must display a form containing the exact action; confirm it manually and
+verify execution. Repeat with decline and verify that nothing executes. A
+client without form elicitation must return a structured error and leave the
+approval available for explicit rejection.

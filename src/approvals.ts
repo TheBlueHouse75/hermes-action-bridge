@@ -31,6 +31,7 @@ export interface ApprovalStoreOptions {
 export interface ApprovalStore {
   prepare(run: EffectiveRun): ApprovalRequest;
   get(approvalId: string): ApprovalRequest | undefined;
+  getPendingRun(approvalId: string): EffectiveRun | undefined;
   approve(approvalId: string): ConsumedApproval | undefined;
   reject(approvalId: string): ApprovalRequest | undefined;
   cleanup(): number;
@@ -106,6 +107,13 @@ export function createApprovalStore(options: ApprovalStoreOptions = {}): Approva
       if (!entry) return undefined;
       expire(entry, now());
       return structuredClone(entry.approval);
+    },
+    getPendingRun(approvalId) {
+      const entry = entries.get(approvalId);
+      if (!entry) return undefined;
+      expire(entry, now());
+      if (entry.approval.status !== "awaiting_approval") return undefined;
+      return structuredClone(entry.run);
     },
     approve(approvalId) {
       const entry = entries.get(approvalId);

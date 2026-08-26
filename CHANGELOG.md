@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-08-26
+
+### Security
+
+- Require MCP form elicitation with explicit client-mediated human confirmation
+  before `hermes_approve` can consume and execute a prepared action.
+- Apply the same fail-closed confirmation barrier to every effective
+  `hermes_run` execution, including YOLO and trusted-preset paths; non-executing
+  MCP modes and the direct CLI remain unchanged.
+- Revalidate approval ownership, expiry, state, and queue capacity after the
+  interactive wait to prevent stale or concurrently rejected approvals from
+  executing.
+- Refresh the development-only `nanoid` lockfile entry to its patched release.
+
 ## [0.6.2] - 2026-07-25
 
 ### Added

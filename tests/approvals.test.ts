@@ -14,9 +14,11 @@ describe("approval store", () => {
     const store = createApprovalStore({ createId: () => "approval-1" });
     const prepared = store.prepare(effectiveRun());
     expect(JSON.stringify(prepared)).not.toContain("private content");
+    expect(store.getPendingRun(prepared.id)?.prompt).toBe("publish private content");
     const consumed = store.approve(prepared.id);
     expect(consumed?.run.prompt).toBe("publish private content");
     expect(consumed?.approval.status).toBe("approved");
+    expect(store.getPendingRun(prepared.id)).toBeUndefined();
     expect(store.approve(prepared.id)).toBeUndefined();
   });
 

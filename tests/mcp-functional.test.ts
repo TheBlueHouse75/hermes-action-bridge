@@ -116,6 +116,7 @@ describe("MCP server", () => {
   it("prepares and approves an unchanged action without logging the prompt", async () => {
     const privatePrompt = "send the private external message";
     const configPath = writeFakeHermesConfig("console.log('prepared or executed');");
+    let confirmationMessage = "";
     await withMcpClient(configPath, async (client) => {
       const prepared = JSON.parse(
         toolText(await client.callTool({ name: "hermes_prepare", arguments: { prompt: privatePrompt } })),
@@ -132,7 +133,15 @@ describe("MCP server", () => {
       const audit = readFileSync(join(dirname(configPath), "audit.jsonl"), "utf8");
       expect(audit).not.toContain(privatePrompt);
       expect(audit).toContain('"phase":"approved"');
+    }, {
+      elicitation: (params) => {
+        confirmationMessage = params.message;
+        return { action: "accept", content: { confirm: true } };
+      },
     });
+    expect(confirmationMessage).toContain(privatePrompt);
+    expect(confirmationMessage).toContain("Only the human operator may confirm it");
+    expect(confirmationMessage).toContain('"effectiveMode": "execute"');
   }, 15_000);
 
   it("bounds and reports synchronous Hermes output", async () => {

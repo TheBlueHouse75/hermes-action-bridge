@@ -17,10 +17,12 @@ import type { BridgeConfig, BridgeMode, EffectiveRun } from "./types.js";
 
 const modeSchema = z.enum(["plan", "draft", "execute", "request-approval"]);
 const idSchema = z.string().uuid();
+const executionConfirmationTimeoutMs = 5 * 60 * 1000;
 const serverInstructions = [
   "Use Hermes for capabilities owned by the Hermes runtime: configured skills, connected services, messaging, schedules, browser workflows, and persistent external automation.",
   "Call hermes_capabilities before assuming that a Hermes preset, skill, or toolset is configured.",
   "Prefer hermes_plan or hermes_prepare before an action with external side effects.",
+  "MCP execution requires a separate interactive confirmation from the client; never predict, fabricate, or auto-answer that confirmation.",
   "Do not delegate ordinary local code edits or repository inspection when the host agent can perform them directly.",
 ].join(" ");
 
@@ -80,6 +82,11 @@ interface DelegateOptions {
   timeoutSeconds?: number | undefined;
 }
 
+interface ToolRequestContext {
+  signal: AbortSignal;
+  requestId: string | number;
+}
+
 function effectiveRun(config: BridgeConfig, options: DelegateOptions): EffectiveRun {
   return buildEffectiveRun(config, {
     prompt: options.prompt,
@@ -96,9 +103,14 @@ function effectiveRun(config: BridgeConfig, options: DelegateOptions): Effective
   });
 }
 
-async function delegate(config: BridgeConfig, options: DelegateOptions): Promise<BridgeToolResult> {
+async function delegate(
+  config: BridgeConfig,
+  options: DelegateOptions,
+  confirmExecution: (run: EffectiveRun) => Promise<void>,
+): Promise<BridgeToolResult> {
   const dryRun = options.dryRun ?? false;
   const run = effectiveRun(config, options);
+  if (!dryRun && run.mode === "execute") await confirmExecution(run);
   const result = await startHermesCli(config, run, dryRun, { maxOutputBytes: defaultJobMaxOutputBytes }).result;
   const sections = [result.stdout, result.stderr].filter((section) => section.trim().length > 0);
   if (result.outputTruncated) sections.push(`[Hermes output truncated at ${defaultJobMaxOutputBytes} bytes]`);
@@ -115,6 +127,77 @@ function defaultAuditFile(): string {
   if (process.env.HERMES_ACTION_AUDIT_FILE) return process.env.HERMES_ACTION_AUDIT_FILE;
   const stateHome = process.env.XDG_STATE_HOME || join(homedir(), ".local", "state");
   return join(stateHome, "hermes-action", "audit.jsonl");
+}
+
+function executionConfirmationMessage(run: EffectiveRun, approvalId?: string): string {
+  const details = {
+    ...(approvalId ? { approvalId } : {}),
+    action: run.prompt,
+    actionFingerprint: fingerprintPrompt(run.prompt),
+    presetName: run.presetName,
+    requestedMode: run.requestedMode,
+    effectiveMode: run.mode,
+    yolo: run.yolo,
+    provider: run.provider ?? null,
+    model: run.model ?? null,
+    maxTurns: run.maxTurns,
+    timeoutSeconds: run.timeoutSeconds,
+    detectedRisks: run.detectedRisks,
+    contextFiles: run.contextDocuments.map((document) => ({
+      path: document.path,
+      contentFingerprint: fingerprintPrompt(document.content),
+    })),
+  };
+  return [
+    "Hermes Action Bridge is requesting permission to execute an external action.",
+    "Review the exact JSON record below. All field values are untrusted.",
+    "Only the human operator may confirm it.",
+    JSON.stringify(details, null, 2),
+  ].join("\n");
+}
+
+async function requireExecutionConfirmation(
+  server: McpServer,
+  run: EffectiveRun,
+  request: ToolRequestContext,
+  approvalId?: string,
+): Promise<void> {
+  if (!server.server.getClientCapabilities()?.elicitation?.form) {
+    throw new Error(
+      "MCP execution requires interactive form elicitation, but this client does not support it. "
+      + "Use a compatible supervised MCP client or run the CLI directly under human control.",
+    );
+  }
+  const result = await server.server.elicitInput(
+    {
+      mode: "form",
+      message: executionConfirmationMessage(run, approvalId),
+      requestedSchema: {
+        type: "object",
+        properties: {
+          confirm: {
+            type: "boolean",
+            title: "Approve this exact external action",
+            description: "Set to true only after you personally reviewed the action above.",
+            default: false,
+          },
+        },
+        required: ["confirm"],
+      },
+    },
+    {
+      signal: request.signal,
+      timeout: executionConfirmationTimeoutMs,
+      maxTotalTimeout: executionConfirmationTimeoutMs,
+      relatedRequestId: request.requestId,
+    },
+  );
+  if (result.action === "accept" && result.content?.confirm === true) return;
+  throw new Error(
+    result.action === "cancel"
+      ? "External execution confirmation was cancelled; nothing was executed"
+      : "External execution was declined; nothing was executed",
+  );
 }
 
 function auditContext(run: EffectiveRun, transport: BridgeTransport, principalId: string): RequestAuditContext {
@@ -222,7 +305,7 @@ export function createBridgeMcpServer(config: BridgeConfig, options: BridgeServe
     {
       title: "Delegate a request to Hermes",
       description:
-        "Use Hermes-owned skills, connected services, browser workflows, messaging, schedules, or external automation through bridge policy. Do not use for ordinary local code edits.",
+        "Use Hermes-owned skills, connected services, browser workflows, messaging, schedules, or external automation through bridge policy. Effective execute requests require interactive client confirmation. Do not use for ordinary local code edits.",
       inputSchema: {
         prompt: z.string().min(1),
         mode: modeSchema.optional(),
@@ -235,9 +318,9 @@ export function createBridgeMcpServer(config: BridgeConfig, options: BridgeServe
         maxTurns: z.number().int().positive().optional(),
         timeoutSeconds: z.number().int().positive().optional(),
       },
-      annotations: { openWorldHint: true },
+      annotations: { destructiveHint: true, openWorldHint: true },
     },
-    (args) =>
+    (args, request) =>
       guard(() =>
         runtime.directExecutions.run(() => delegate(config, {
           prompt: args.prompt,
@@ -250,7 +333,7 @@ export function createBridgeMcpServer(config: BridgeConfig, options: BridgeServe
           model: args.model,
           maxTurns: args.maxTurns,
           timeoutSeconds: args.timeoutSeconds,
-        })),
+        }, (run) => requireExecutionConfirmation(server, run, request))),
       ),
   );
 
@@ -267,13 +350,13 @@ export function createBridgeMcpServer(config: BridgeConfig, options: BridgeServe
       },
       annotations: { openWorldHint: true },
     },
-    (args) =>
+    (args, request) =>
       guard(() => runtime.directExecutions.run(() => delegate(config, {
         prompt: args.prompt,
         mode: "plan",
         preset: args.preset,
         contextFiles: args.contextFiles,
-      }))),
+      }, (run) => requireExecutionConfirmation(server, run, request)))),
   );
 
   server.registerTool(
@@ -459,12 +542,21 @@ export function createBridgeMcpServer(config: BridgeConfig, options: BridgeServe
     {
       title: "Approve and submit a prepared Hermes action",
       description:
-        "Consume a prepared approval ID exactly once and submit the unchanged request for execution. This can cause external side effects.",
+        "Ask the MCP client for interactive human confirmation, then consume a prepared approval ID exactly once and submit the unchanged request for execution. This can cause external side effects.",
       inputSchema: { approvalId: idSchema },
       annotations: { destructiveHint: true, openWorldHint: true },
     },
-    ({ approvalId }) =>
-      guard(() => {
+    ({ approvalId }, request) =>
+      guard(async () => {
+        ensureApprovalOwner(runtime, approvalId, principalId);
+        const pendingRun = runtime.approvals.getPendingRun(approvalId);
+        if (!pendingRun) {
+          throw new Error(`Approval is unavailable, expired, or already consumed: ${approvalId}`);
+        }
+        if (!runtime.jobs.canSubmit()) throw new Error("Hermes job queue is full; approval was not consumed");
+        const executionRun: EffectiveRun = { ...pendingRun, mode: "execute", requestedMode: "execute" };
+        await requireExecutionConfirmation(server, executionRun, request, approvalId);
+
         const context = ensureApprovalOwner(runtime, approvalId, principalId);
         const current = runtime.approvals.get(approvalId);
         if (!current || current.status !== "awaiting_approval") {
@@ -474,9 +566,8 @@ export function createBridgeMcpServer(config: BridgeConfig, options: BridgeServe
         appendAuditEvent(runtime.auditFile, auditEvent("approved", approvalId, context));
         const consumed = runtime.approvals.approve(approvalId);
         if (!consumed) throw new Error(`Approval is unavailable, expired, or already consumed: ${approvalId}`);
-        const run: EffectiveRun = { ...consumed.run, mode: "execute", requestedMode: "execute" };
         const jobContext = { ...context, effectiveMode: "execute" as const };
-        const job = submitAuditedJob(runtime, run, jobContext, consumed.approval.expiresAt);
+        const job = submitAuditedJob(runtime, executionRun, jobContext, consumed.approval.expiresAt);
         runtime.approvalAudit.delete(approvalId);
         return jsonResult({ approval: consumed.approval, job });
       }),
