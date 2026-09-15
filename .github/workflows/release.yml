@@ -22,7 +22,7 @@ jobs:
         run: node -e 'const { version } = require("./package.json"); const expected = "v" + version; if (process.env.RELEASE_TAG !== expected) throw new Error(`Release tag ${process.env.RELEASE_TAG} must equal ${expected}`)'
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
