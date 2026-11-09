@@ -4,17 +4,18 @@ on:
   release:
     types: [published]
 
-permissions:
-  contents: write  # upload the versioned MCPB asset to the published GitHub release
-  id-token: write  # required for npm Trusted Publishing (OIDC) and provenance
+permissions: {}
 
 jobs:
   publish:
+    permissions:
+      contents: write  # upload the versioned MCPB asset to the published GitHub release
+      id-token: write  # required for npm Trusted Publishing (OIDC) and provenance
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Verify release tag matches package version
         env:
@@ -22,7 +23,7 @@ jobs:
         run: node -e 'const { version } = require("./package.json"); const expected = "v" + version; if (process.env.RELEASE_TAG !== expected) throw new Error(`Release tag ${process.env.RELEASE_TAG} must equal ${expected}`)'
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
@@ -100,15 +101,34 @@ jobs:
       # Publish the MCP server to the official MCP Registry (registry.modelcontextprotocol.io).
       # Auth is GitHub OIDC (no token): the workflow's identity authorizes the
       # io.github.TheBlueHouse75/* namespace declared in server.json.
+      # modelcontextprotocol/registry v1.8.8. SHA-256 values are from
+      # registry_1.8.8_checksums.txt and match the published linux archives.
       - name: Install mcp-publisher
         timeout-minutes: 3
         run: |
+          set -euo pipefail
+          publisher_version="v1.8.8"
+          publisher_os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+          publisher_arch="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
+          case "${publisher_os}_${publisher_arch}" in
+            linux_amd64)
+              expected_sha256="09f1fa70ee146b640584274a1a6b2b8a0310b05d4321fa9224e6df6a016d67f4"
+              ;;
+            linux_arm64)
+              expected_sha256="7a8effbfc574f141a07c3c027bf5cb5764a7aa3adb335cd1c0e1757c4c88d9dc"
+              ;;
+            *)
+              echo "Unsupported mcp-publisher platform: ${publisher_os}_${publisher_arch}"
+              exit 1
+              ;;
+          esac
           publisher_archive="$(mktemp)"
           trap 'rm -f "$publisher_archive"' EXIT
           curl --fail --location --retry 4 --retry-all-errors \
             --connect-timeout 15 --max-time 120 \
-            "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" \
+            "https://github.com/modelcontextprotocol/registry/releases/download/${publisher_version}/mcp-publisher_${publisher_os}_${publisher_arch}.tar.gz" \
             --output "$publisher_archive"
+          echo "${expected_sha256}  ${publisher_archive}" | sha256sum -c -
           tar xzf "$publisher_archive" mcp-publisher
 
       - name: Sync server.json version from package.json
