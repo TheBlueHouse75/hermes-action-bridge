@@ -95,7 +95,7 @@ version without a leading `v` (for example, `0.5.1`).
 
 ### Prerequisites
 
-- Node.js 20 or newer; the release workflow itself uses Node.js 22.
+- Node.js 22.12 or a later 22.x release for local validation, matching the release workflow.
 - Git push access to the repository and a clean working tree.
 - The intended version has not already been published to npm.
 
