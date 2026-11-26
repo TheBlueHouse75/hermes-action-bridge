@@ -4,6 +4,8 @@ Thanks for considering a contribution.
 
 ## Local setup
 
+Use Node.js 22.12 or a later 22.x release to match CI when running the checks.
+
 ```bash
 npm install
 npm run check
