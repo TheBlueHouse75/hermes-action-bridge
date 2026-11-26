@@ -1,0 +1,98 @@
+name: Publish MCP Registry
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Published npm version (without the v prefix)
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  publish:
+    permissions:
+      contents: read
+      id-token: write  # required for MCP Registry GitHub OIDC
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/v${{ inputs.version }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Verify release tag matches package version
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: node -e 'const { version } = require("./package.json"); if (process.env.RELEASE_VERSION !== version) throw new Error("Release input must equal the tagged package version")'
+
+      - name: Install mcp-publisher
+        timeout-minutes: 3
+        run: |
+          set -euo pipefail
+          publisher_version="v1.8.8"
+          publisher_os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+          publisher_arch="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
+          case "${publisher_os}_${publisher_arch}" in
+            linux_amd64)
+              expected_sha256="09f1fa70ee146b640584274a1a6b2b8a0310b05d4321fa9224e6df6a016d67f4"
+              ;;
+            linux_arm64)
+              expected_sha256="7a8effbfc574f141a07c3c027bf5cb5764a7aa3adb335cd1c0e1757c4c88d9dc"
+              ;;
+            *)
+              echo "Unsupported mcp-publisher platform: ${publisher_os}_${publisher_arch}"
+              exit 1
+              ;;
+          esac
+          publisher_archive="$(mktemp)"
+          trap 'rm -f "$publisher_archive"' EXIT
+          curl --fail --location --retry 4 --retry-all-errors \
+            --connect-timeout 15 --max-time 120 \
+            "https://github.com/modelcontextprotocol/registry/releases/download/${publisher_version}/mcp-publisher_${publisher_os}_${publisher_arch}.tar.gz" \
+            --output "$publisher_archive"
+          echo "${expected_sha256}  ${publisher_archive}" | sha256sum -c -
+          tar xzf "$publisher_archive" mcp-publisher
+
+      - name: Sync server.json version from package.json
+        run: |
+          node -e "const fs=require('fs');const pkg=require('./package.json');const s=require('./server.json');s.version=pkg.version;s.packages[0].version=pkg.version;fs.writeFileSync('./server.json',JSON.stringify(s,null,2)+'\n')"
+
+      - name: Publish or verify server in MCP Registry
+        timeout-minutes: 3
+        env:
+          MCP_REGISTRY_BASE_URL: https://registry.modelcontextprotocol.io/v0.1/servers
+        run: |
+          set -euo pipefail
+          registry_name="$(node -p 'require("./server.json").name')"
+          registry_version="$(node -p 'require("./server.json").version')"
+          encoded_name="$(node -p 'encodeURIComponent(process.argv[1])' "$registry_name")"
+          registry_url="$MCP_REGISTRY_BASE_URL/$encoded_name/versions/$registry_version"
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+          http_status="$(curl --silent --show-error --connect-timeout 15 --max-time 30 --output "$response_file" --write-out '%{http_code}' "$registry_url")"
+
+          case "$http_status" in
+            200)
+              REGISTRY_RESPONSE="$response_file" node -e 'const fs = require("node:fs"); const { isDeepStrictEqual } = require("node:util"); const expected = require("./server.json"); const actual = JSON.parse(fs.readFileSync(process.env.REGISTRY_RESPONSE, "utf8")).server; if (!isDeepStrictEqual(actual, expected)) throw new Error("Published MCP Registry metadata differs from server.json")'
+              echo "$registry_name@$registry_version is already published with matching metadata."
+              ;;
+            404)
+              ./mcp-publisher login github-oidc
+              ./mcp-publisher publish
+              ;;
+            *)
+              echo "MCP Registry lookup failed with HTTP $http_status."
+              cat "$response_file"
+              exit 1
+              ;;
+          esac

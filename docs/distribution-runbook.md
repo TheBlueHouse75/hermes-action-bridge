@@ -247,10 +247,24 @@ returns the matching version. Save the workflow URL and the Release URL.
 For a transient workflow failure, re-run the same GitHub Release workflow
 while the release branch remains unmerged. The npm retry rebuilds the tarball
 from the release tag and compares its SHA-512 with npm `dist.integrity`; the
-MCPB retry compares the rebuilt archive byte-for-byte with the existing release
-asset; the MCP Registry retry compares its existing metadata with `server.json`.
+integrity check accepts array and object output from `npm pack --json`, including
+objects keyed by package name. The MCPB retry compares the rebuilt archive
+byte-for-byte with the existing release asset; the MCP Registry retry compares
+its existing metadata with `server.json`.
 If any comparison fails, stop: the existing immutable publication differs from
 this source and must not be overwritten.
+
+If npm and MCPB are verified and only the Registry remains pending, run the
+registry-only recovery workflow from `main`. It reads `server.json` and
+`package.json` from `v<version>` and either publishes the missing Registry record
+using GitHub OIDC or verifies the existing record exactly.
+
+```bash
+gh workflow run mcp-registry-publish.yml --ref main -f 'version=<version>'
+```
+
+Retain the workflow URL and confirm the public endpoint matches the tagged
+`server.json` before promoting the release.
 
 There is no safe rollback by reusing `<version>`. If publication fails before
 promotion to `main`, prepare a new corrective version on a new release branch.
@@ -263,8 +277,8 @@ substitute for a corrective version.
 
 ### Prerequisites
 
-- The GitHub Release workflow is successful and its npm, MCPB, and MCP Registry
-  proofs match `<version>`.
+- npm, MCPB, and MCP Registry proofs match `<version>`. The registry-only
+  recovery workflow can provide the Registry proof if that release step failed.
 - `origin/release/<version>` is exactly the tagged release commit, not merely a
   descendant of it.
 - The release authority knows whether `main` requires a pull request or
