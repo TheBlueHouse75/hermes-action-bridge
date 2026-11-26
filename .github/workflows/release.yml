@@ -57,7 +57,7 @@ jobs:
             package_directory="$(mktemp -d)"
             trap 'rm -rf "$package_directory"' EXIT
             npm pack --json --pack-destination "$package_directory" > "$package_directory/pack.json"
-            tarball_path="$(node -e 'const fs=require("node:fs");const path=require("node:path");const [pack]=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(path.join(process.argv[2],pack.filename))' "$package_directory/pack.json" "$package_directory")"
+            tarball_path="$(node -e 'const fs=require("node:fs");const path=require("node:path");const parsed=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));const pack=Array.isArray(parsed)?parsed[0]:(parsed[process.argv[3]]??parsed);process.stdout.write(path.join(process.argv[2],pack.filename))' "$package_directory/pack.json" "$package_directory" "$package_name")"
             local_integrity="$(node -e 'const fs=require("node:fs");const crypto=require("node:crypto");process.stdout.write(`sha512-${crypto.createHash("sha512").update(fs.readFileSync(process.argv[1])).digest("base64")}`)' "$tarball_path")"
             if [ "$local_integrity" != "$published_integrity" ]; then
               echo "Published npm tarball integrity differs from the release tag for $package_name@$package_version."
