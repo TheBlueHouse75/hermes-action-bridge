@@ -6,6 +6,31 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-11-26
+
+### Security
+
+- Refresh the transitive `fast-uri` lockfile entry to 3.1.9, the 3.x security
+  release that fixes URI parsing and normalization bugs
+  ([GHSA-wjr9-j795-jxcr](https://github.com/fastify/fast-uri/security/advisories/GHSA-wjr9-j795-jxcr)).
+- Pin `mcp-publisher` in the release workflow and narrow that workflow's
+  permissions.
+- Run `actions/checkout` and `actions/setup-node` at v7 in CI, and pin the
+  release workflow to the v7.0.1 and v7.1.0 SHAs.
+
+### Changed
+
+- Update `zod` to 4.5.4.
+- Refresh transitive lockfile entries for `hono` 4.13.11, `qs` 6.16.0, and
+  `ip-address` 10.7.2.
+
+### Development
+
+- Update the toolchain to TypeScript 7.0.2 and Vitest 5.0.2, with matching
+  typings (`@types/node` 26, `@types/yauzl` 3, `@types/yazl` 3, and `tsx`
+  4.23.12). Local and CI checks continue to expect Node.js 22.12 or a later
+  22.x release.
+
 ## [0.6.3] - 2026-08-26
 
 ### Security
